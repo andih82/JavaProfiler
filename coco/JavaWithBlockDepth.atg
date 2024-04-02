@@ -1,0 +1,177 @@
+import java.util.List;
+import java.util.ArrayList;
+
+class InsertPoint{
+
+    static final int BEGINN = 0;
+	static final int END = 1;
+	static final int RETURN = 2;
+	static final int START = 3;
+	static final int EXIT = 4;
+
+    int nClass;
+    int nMethod;
+    int typ;
+    int charPos;
+    boolean isBlock;
+
+    public InsertPoint(int nClass, int nMethod, int typ, int charPos, boolean isBlock){
+        this.nClass = nClass;
+        this.nMethod = nMethod;
+        this.typ = typ;
+        this.charPos = charPos;
+        this.isBlock = isBlock;
+    }
+}
+COMPILER Java
+
+	static final String BEGINN = "BEGINN";
+	static final String END = "END";
+	static final String RETURN = "RETURN";
+	static final String START = "START";
+	static final String EXIT = "EXIT";
+
+	String curMethod = "";
+	String curClass = "";
+	boolean isVoidMethode = false;
+	int nClass = -1;
+	int nMethod = -1;
+	int blockDepth = 0;
+	List<String> classes = new ArrayList<String>();
+	List<List<String>> methodes = new ArrayList<List<String>>();
+	List<InsertPoint> insertPoints = new ArrayList();
+
+	int pos(int i) {
+		if (i >= 0) return i; else return i + SIZE;
+	}
+
+	boolean isMethodBlock() {
+		if (la.kind == _lbrace && buf[pos(top-2)].kind == _rpar) {
+			int level = 1;
+			int i = pos(top-3);
+			while (i != top) {
+				if (buf[i].kind == _rpar) level++;
+				else if (buf[i].kind == _lpar) {
+					level--;
+					if (level == 0) {
+						if (buf[pos(i-1)].kind == _ident) {
+							curMethod = buf[pos(i-1)].val;
+                            isVoidMethode = buf[pos(i-2)].kind == _void || curClass.equals(curMethod);
+							return true;
+						} else return false;
+					}
+				}
+				i = pos(i-1);
+			}
+		}
+		return false;
+	}
+
+    Token findMethodBegin() {
+        if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
+            Token peekToken = scanner.Peek();
+            if(peekToken.kind == _lpar){
+                for (;;){
+                    if (";".equals(peekToken.val)){
+                        return peekToken;
+                    }
+                    peekToken = scanner.Peek();
+                }
+            }
+        }
+        return t;
+    }
+
+	boolean isReturnInBlock(){
+		if (buf[pos(top-3)].kind == _rpar 
+			|| buf[pos(top-3)].kind == _else_) {
+			return false;
+		}
+		return true;
+	}
+	
+
+/*-------------------------------------------------------------------------*/
+
+CHARACTERS
+  letter    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_".
+  digit     = "0123456789".
+  noquote   = ANY - '"'.
+  noapo     = ANY - '\''.
+
+TOKENS
+  ident     = letter {letter | digit}.
+  number    = digit {digit}.
+  string    = '"' {noquote | '\\' ['"']} '"'.
+  charCon   = '\'' {noapo | '\\' ['\'']} '\''.
+  void      = "void".
+  if_       = "if".
+  while_    = "while".
+  switch_   = "switch".
+  else_     = "else".
+  lpar      = '('.
+  rpar      = ')'.
+  lbrace    = '{'.
+  rbrace    = '}'.
+
+COMMENTS FROM "/*" TO "*/"
+COMMENTS FROM "//" TO "\r\n"
+
+IGNORE '\r' + '\n' + '\t'
+
+/*-------------------------------------------------------------------------*/
+
+PRODUCTIONS
+
+Java
+= { "class" ident         (. nClass++;
+							System.out.println("----- " + nClass + " class " + t.val);
+							nMethod = -1;
+							curClass  = t.val;
+							classes.add(curClass);
+							methodes.add(new ArrayList<String>()); 
+							.)
+    {ANY} "{"
+    ClassBody
+  | ANY
+  }.
+
+ClassBody
+= { IF(isMethodBlock())
+		"{"               (. nMethod++; blockDepth = 1;
+                                Token bTok = findMethodBegin();
+								System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
+								methodes.get(methodes.size() - 1).add(curMethod);
+								insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.START :  InsertPoint.BEGINN, bTok.charPos + 1, true ));
+							.)
+		Block
+	| "{"                   (. blockDepth++; curMethod = "";
+							   System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col); 
+							.)
+		Block  // non-method block
+	|   ANY
+	}
+	"}".
+
+Block
+= { "{"                   (. blockDepth++;
+							System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col);
+					      .)
+		Block
+	| "return"     		  (.
+							System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
+							insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.RETURN, t.charPos, isReturnInBlock() ));
+						  .)
+		{ANY} ";"
+	
+	| ANY
+	}
+	"}"                   (. System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "end " + nMethod + ": line " + t.line + ", col " + t.col);
+								blockDepth--;
+								if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod)){
+									insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.EXIT :  InsertPoint.END, t.charPos, false ));
+								}
+						   .).
+
+
+END Java.
