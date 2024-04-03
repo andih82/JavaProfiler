@@ -46,17 +46,17 @@ COMPILER Java
 	}
 
 	boolean isMethodBlock() {
-		if (la.kind == _lbrace && buf[pos(top-2)].kind == _rpar) {
+		if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar) || la.kind == _throws_) {
 			int level = 1;
 			int i = pos(top-3);
-			while (i != top) {
+			while (i != top &&  i <= bufLen ) {
 				if (buf[i].kind == _rpar) level++;
 				else if (buf[i].kind == _lpar) {
 					level--;
 					if (level == 0) {
 						if (buf[pos(i-1)].kind == _ident) {
 							curMethod = buf[pos(i-1)].val;
-                            isVoidMethode = buf[pos(i-2)].kind == _void || curClass.equals(curMethod);
+                            isVoidMethode = buf[pos(i-2)].kind == _void_ || curClass.equals(curMethod);
 							return true;
 						} else return false;
 					}
@@ -68,8 +68,11 @@ COMPILER Java
 	}
 
     Token findMethodBegin() {
+		if(la.kind == _throws_){
+			while (t.kind != _lbrace)  Get();
+		}
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
-            Token peekToken = scanner.Peek();
+			Token peekToken = scanner.Peek();
             if(peekToken.kind == _lpar){
                 for (;;){
                     if (";".equals(peekToken.val)){
@@ -104,11 +107,12 @@ TOKENS
   number    = digit {digit}.
   string    = '"' {noquote | '\\' ['"']} '"'.
   charCon   = '\'' {noapo | '\\' ['\'']} '\''.
-  void      = "void".
+  void_      = "void".
   if_       = "if".
   while_    = "while".
   switch_   = "switch".
   else_     = "else".
+  throws_   = "throws".
   lpar      = '('.
   rpar      = ')'.
   lbrace    = '{'.

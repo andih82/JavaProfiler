@@ -1,3 +1,5 @@
+
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -7,7 +9,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class Example {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
         KnightsTour.knightsTourMain();
         //Mergesort
@@ -22,6 +24,12 @@ public class Example {
         Parentclass pc = new Parentclass();
         Childclass cc1 = new Childclass();
         Childclass cc2 = new Childclass("World!");
+        Childclass cc3 = new Childclass(false);
+
+        ExceptionHandling.exceptionMain();
+        ExceptionHandling.throwingException(false);
+        ExceptionHandling.catchingException(false);
+
 
 
     }
@@ -426,6 +434,11 @@ class Parentclass{
         System.out.println("Parentclass constructor call");
     }
 
+    Parentclass(String tag){
+        waiting();
+        System.out.println("Parentclass constructor call tag: " + tag);
+    }
+
     protected void waiting(){
         try {
             Thread.sleep(100);
@@ -448,4 +461,44 @@ class Childclass extends Parentclass{
         waiting();
         System.out.println("Hello " + hello);
     }
+
+    Childclass(boolean throwing) throws InterruptedException, IOException {
+        super("throwing : " + throwing);
+        if(throwing){
+            throw new IOException("throwing in child constrctor");
+        }
+        Thread.sleep(100);
+    }
+}
+
+class ExceptionHandling{
+
+    public static void exceptionMain() throws RuntimeException, Exception{
+        Thread.sleep(100);
+    }
+
+    public static void throwingException(boolean throwing) throws Exception {
+        Thread.sleep(100);
+        throwing(throwing);
+    }
+
+    public static void catchingException(boolean throwing) throws Exception {
+        Thread.sleep(100);
+        try {
+            throwing(throwing);
+        }catch (Exception e){
+            System.out.println("caught");
+        }
+    }
+
+    private static void throwing(boolean throwing) throws Exception {
+        Thread.sleep(100);
+        if(throwing){
+            throw new Exception("Throwing");
+        }
+        Thread.sleep(100);
+    }
+
+
+
 }

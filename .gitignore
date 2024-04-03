@@ -45,4 +45,3 @@ bin/
 example/.profile*
 /src/main/java/cc/hofstadler/Parser.java.old
 /src/main/java/cc/hofstadler/Scanner.java.old
-/.idea/

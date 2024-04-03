@@ -246,8 +246,8 @@ class StartStates {
 public class Scanner {
 	static final char EOL = '\n';
 	static final int  eofSym = 0;
-	static final int maxT = 17;
-	static final int noSym = 17;
+	static final int maxT = 18;
+	static final int noSym = 18;
 
 
 	public Buffer buffer; // scanner buffer
@@ -289,8 +289,9 @@ public class Scanner {
 		literals.put("while", 7);
 		literals.put("switch", 8);
 		literals.put("else", 9);
-		literals.put("class", 14);
-		literals.put("return", 15);
+		literals.put("throws", 10);
+		literals.put("class", 15);
+		literals.put("return", 16);
 
 	}
 	
@@ -444,13 +445,13 @@ public class Scanner {
 					else if (ch == 92) {AddCh(); state = 12; break;}
 					else {state = 0; break;}
 				case 5:
-					{t.kind = 10; break loop;}
-				case 6:
 					{t.kind = 11; break loop;}
-				case 7:
+				case 6:
 					{t.kind = 12; break loop;}
-				case 8:
+				case 7:
 					{t.kind = 13; break loop;}
+				case 8:
+					{t.kind = 14; break loop;}
 				case 9:
 					{t.kind = 3; break loop;}
 				case 10:
@@ -478,7 +479,7 @@ public class Scanner {
 					else if (ch == 92) {AddCh(); state = 12; break;}
 					else {t.kind = 4; break loop;}
 				case 15:
-					{t.kind = 16; break loop;}
+					{t.kind = 17; break loop;}
 
 			}
 		}

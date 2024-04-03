@@ -25,5 +25,5 @@ tasks.test {
 tasks.register<JavaExec>("runCoco"){
     classpath = files("coco/Coco.jar")
     mainClass = "Coco/Coco"
-    args = listOf("${project.rootDir}\\coco\\JavaWithBlockDepth.atg", "-package", "cc.hofstadler", "-o", "${project.rootDir}\\src/main/java/cc/hofstadler/")
+    args = listOf("${project.rootDir}/coco/JavaWithBlockDepth.atg", "-package", "cc.hofstadler", "-o", "${project.rootDir}/src/main/java/cc/hofstadler/")
 }

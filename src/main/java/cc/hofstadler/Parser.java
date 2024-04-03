@@ -34,16 +34,17 @@ public class Parser {
 	public static final int _number = 2;
 	public static final int _string = 3;
 	public static final int _charCon = 4;
-	public static final int _void = 5;
+	public static final int _void_ = 5;
 	public static final int _if_ = 6;
 	public static final int _while_ = 7;
 	public static final int _switch_ = 8;
 	public static final int _else_ = 9;
-	public static final int _lpar = 10;
-	public static final int _rpar = 11;
-	public static final int _lbrace = 12;
-	public static final int _rbrace = 13;
-	public static final int maxT = 17;
+	public static final int _throws_ = 10;
+	public static final int _lpar = 11;
+	public static final int _rpar = 12;
+	public static final int _lbrace = 13;
+	public static final int _rbrace = 14;
+	public static final int maxT = 18;
 
 	static final boolean _T = true;
 	static final boolean _x = false;
@@ -59,6 +60,7 @@ public class Parser {
 	private static final int SIZE = 64;
 	private Token[] buf = new Token[SIZE];
 	private int top = 0;
+	private int bufLen = 0;
 
 	static final String BEGINN = "BEGINN";
 	static final String END = "END";
@@ -81,17 +83,17 @@ public class Parser {
 	}
 
 	boolean isMethodBlock() {
-		if (la.kind == _lbrace && buf[pos(top-2)].kind == _rpar) {
+		if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar) || la.kind == _throws_) {
 			int level = 1;
 			int i = pos(top-3);
-			while (i != top) {
+			while (i != top &&  i <= bufLen ) {
 				if (buf[i].kind == _rpar) level++;
 				else if (buf[i].kind == _lpar) {
 					level--;
 					if (level == 0) {
 						if (buf[pos(i-1)].kind == _ident) {
 							curMethod = buf[pos(i-1)].val;
-                            isVoidMethode = buf[pos(i-2)].kind == _void || curClass.equals(curMethod);
+                            isVoidMethode = buf[pos(i-2)].kind == _void_ || curClass.equals(curMethod);
 							return true;
 						} else return false;
 					}
@@ -103,8 +105,11 @@ public class Parser {
 	}
 
     Token findMethodBegin() {
+		if(la.kind == _throws_){
+			while (t.kind != _lbrace)  Get();
+		}
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
-            Token peekToken = scanner.Peek();
+			Token peekToken = scanner.Peek();
             if(peekToken.kind == _lpar){
                 for (;;){
                     if (";".equals(peekToken.val)){
@@ -157,6 +162,7 @@ public class Parser {
 			la = t;
 		}
 		buf[top] = la;
+		bufLen += bufLen < SIZE ? 1 : 0;
 		top = (top + 1) % SIZE;
 	}
 	
@@ -192,7 +198,7 @@ public class Parser {
 	
 	void Java() {
 		while (StartOf(1)) {
-			if (la.kind == 14) {
+			if (la.kind == 15) {
 				Get();
 				Expect(1);
 				nClass++;
@@ -205,7 +211,7 @@ public class Parser {
 				while (StartOf(2)) {
 					Get();
 				}
-				Expect(12);
+				Expect(13);
 				ClassBody();
 			} else {
 				Get();
@@ -216,7 +222,7 @@ public class Parser {
 	void ClassBody() {
 		while (StartOf(3)) {
 			if (isMethodBlock()) {
-				Expect(12);
+				Expect(13);
 				nMethod++; blockDepth = 1;
 				        Token bTok = findMethodBegin();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
@@ -224,7 +230,7 @@ public class Parser {
 				insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.START :  InsertPoint.BEGINN, bTok.charPos + 1, true ));
 				
 				Block();
-			} else if (la.kind == 12) {
+			} else if (la.kind == 13) {
 				Get();
 				blockDepth++; curMethod = "";
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col); 
@@ -234,18 +240,18 @@ public class Parser {
 				Get();
 			}
 		}
-		Expect(13);
+		Expect(14);
 	}
 
 	void Block() {
 		while (StartOf(3)) {
-			if (la.kind == 12) {
+			if (la.kind == 13) {
 				Get();
 				blockDepth++;
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col);
 				
 				Block();
-			} else if (la.kind == 15) {
+			} else if (la.kind == 16) {
 				Get();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
 				insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.RETURN, t.charPos, isReturnInBlock() ));
@@ -253,12 +259,12 @@ public class Parser {
 				while (StartOf(4)) {
 					Get();
 				}
-				Expect(16);
+				Expect(17);
 			} else {
 				Get();
 			}
 		}
-		Expect(13);
+		Expect(14);
 		System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "end " + nMethod + ": line " + t.line + ", col " + t.col);
 		blockDepth--;
 		if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod)){
@@ -280,11 +286,11 @@ public class Parser {
 	}
 
 	private static final boolean[][] set = {
-		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x,_T,_T,_T, _T,_T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x,_T,_x}
+		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_x}
 
 	};
 } // end Parser
@@ -314,19 +320,20 @@ class Errors {
 			case 2: s = "number expected"; break;
 			case 3: s = "string expected"; break;
 			case 4: s = "charCon expected"; break;
-			case 5: s = "void expected"; break;
+			case 5: s = "void_ expected"; break;
 			case 6: s = "if_ expected"; break;
 			case 7: s = "while_ expected"; break;
 			case 8: s = "switch_ expected"; break;
 			case 9: s = "else_ expected"; break;
-			case 10: s = "lpar expected"; break;
-			case 11: s = "rpar expected"; break;
-			case 12: s = "lbrace expected"; break;
-			case 13: s = "rbrace expected"; break;
-			case 14: s = "\"class\" expected"; break;
-			case 15: s = "\"return\" expected"; break;
-			case 16: s = "\";\" expected"; break;
-			case 17: s = "??? expected"; break;
+			case 10: s = "throws_ expected"; break;
+			case 11: s = "lpar expected"; break;
+			case 12: s = "rpar expected"; break;
+			case 13: s = "lbrace expected"; break;
+			case 14: s = "rbrace expected"; break;
+			case 15: s = "\"class\" expected"; break;
+			case 16: s = "\"return\" expected"; break;
+			case 17: s = "\";\" expected"; break;
+			case 18: s = "??? expected"; break;
 			default: s = "error " + n; break;
 		}
 		printMsg(line, col, s);

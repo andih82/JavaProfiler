@@ -44,6 +44,7 @@ public class Parser {
 	private static final int SIZE = 64;
 	private Token[] buf = new Token[SIZE];
 	private int top = 0;
+	private int bufLen = 0;
 
 	-->declarations
 
@@ -74,6 +75,7 @@ public class Parser {
 			la = t;
 		}
 		buf[top] = la;
+		bufLen += bufLen < SIZE ? 1 : 0;
 		top = (top + 1) % SIZE;
 	}
 	
