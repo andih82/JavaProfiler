@@ -34,7 +34,7 @@ public class JavaProfiler {
 		Instrumenter instrumenter = new Instrumenter(parser.classes, parser.methodes, parser.insertPoints);
 
 		String instrumented = instrumenter.instrument(FileUtils.readFileToString(args[0]));
-		String inited_M = instrumenter.init_M(FileUtils.readFileToString("C:\\workspace\\JavaProfiler\\Project\\JavaProfiler\\src\\main\\java\\cc\\hofstadler\\_M.frame") );
+		String inited_M = instrumenter.init_M(FileUtils.readFileToString("src\\main\\java\\cc\\hofstadler\\_M.frame") );
 
 		FileUtils.writeStringToFile(instrumented, absolutePath,fileName, profileDir);
 		FileUtils.writeStringToFile(inited_M,absolutePath,"_M.java", profileDir);

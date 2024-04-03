@@ -44,7 +44,7 @@ public class Parser {
 	public static final int _rpar = 12;
 	public static final int _lbrace = 13;
 	public static final int _rbrace = 14;
-	public static final int maxT = 18;
+	public static final int maxT = 19;
 
 	static final boolean _T = true;
 	static final boolean _x = false;
@@ -105,9 +105,9 @@ public class Parser {
 	}
 
     Token findMethodBegin() {
-		if(la.kind == _throws_){
-			while (t.kind != _lbrace)  Get();
-		}
+		//if(la.kind == _throws_){
+		//	while (t.kind != _lbrace)  Get();
+		//}
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
 			Token peekToken = scanner.Peek();
             if(peekToken.kind == _lpar){
@@ -222,9 +222,19 @@ public class Parser {
 	void ClassBody() {
 		while (StartOf(3)) {
 			if (isMethodBlock()) {
-				Expect(13);
+				if (la.kind == 13) {
+					Get();
+				} else if (la.kind == 10) {
+					Get();
+					Expect(1);
+					if (la.kind == 16) {
+						Get();
+						Expect(1);
+					}
+					Expect(13);
+				} else SynErr(20);
 				nMethod++; blockDepth = 1;
-				        Token bTok = findMethodBegin();
+				Token bTok = findMethodBegin();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
 				methodes.get(methodes.size() - 1).add(curMethod);
 				insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.START :  InsertPoint.BEGINN, bTok.charPos + 1, true ));
@@ -251,7 +261,7 @@ public class Parser {
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col);
 				
 				Block();
-			} else if (la.kind == 16) {
+			} else if (la.kind == 17) {
 				Get();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
 				insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.RETURN, t.charPos, isReturnInBlock() ));
@@ -259,7 +269,7 @@ public class Parser {
 				while (StartOf(4)) {
 					Get();
 				}
-				Expect(17);
+				Expect(18);
 			} else {
 				Get();
 			}
@@ -286,11 +296,11 @@ public class Parser {
 	}
 
 	private static final boolean[][] set = {
-		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_x}
+		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _x}
 
 	};
 } // end Parser
@@ -331,9 +341,11 @@ class Errors {
 			case 13: s = "lbrace expected"; break;
 			case 14: s = "rbrace expected"; break;
 			case 15: s = "\"class\" expected"; break;
-			case 16: s = "\"return\" expected"; break;
-			case 17: s = "\";\" expected"; break;
-			case 18: s = "??? expected"; break;
+			case 16: s = "\",\" expected"; break;
+			case 17: s = "\"return\" expected"; break;
+			case 18: s = "\";\" expected"; break;
+			case 19: s = "??? expected"; break;
+			case 20: s = "invalid ClassBody"; break;
 			default: s = "error " + n; break;
 		}
 		printMsg(line, col, s);

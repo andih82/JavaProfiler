@@ -68,9 +68,9 @@ COMPILER Java
 	}
 
     Token findMethodBegin() {
-		if(la.kind == _throws_){
-			while (t.kind != _lbrace)  Get();
-		}
+		//if(la.kind == _throws_){
+		//	while (t.kind != _lbrace)  Get();
+		//}
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
 			Token peekToken = scanner.Peek();
             if(peekToken.kind == _lpar){
@@ -142,7 +142,7 @@ Java
 
 ClassBody
 = { IF(isMethodBlock())
-		"{"               (. nMethod++; blockDepth = 1;
+		("{" | "throws" ident ["," ident] "{")    (. nMethod++; blockDepth = 1;
                                 Token bTok = findMethodBegin();
 								System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
 								methodes.get(methodes.size() - 1).add(curMethod);

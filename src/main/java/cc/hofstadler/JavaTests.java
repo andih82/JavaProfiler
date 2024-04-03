@@ -1,9 +1,10 @@
 package cc.hofstadler;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class PathTests {
+public class JavaTests {
 
     public static void main(String[] args){
         Path p = Paths.get("JavaProfiler.java");
@@ -11,4 +12,5 @@ public class PathTests {
         System.out.println(p.toAbsolutePath());
         System.out.println(p.toAbsolutePath().getParent());
     }
+
 }
