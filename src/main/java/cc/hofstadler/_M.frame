@@ -32,13 +32,17 @@ class _M {  // class for recording measurements
         long currTime = System.nanoTime() - times[top];  // compute run time of current method
         time[curClass][curMethod] += currTime;
         // only correct if not root method, else ste overalltime
-        if(top == 0){
+        if (top == 0) {
             overalltime = System.currentTimeMillis() - overalltime;
             return;
         }
         curClass = classes[top];
         curMethod = methods[top];
         corr[curClass][curMethod] += currTime;
+    }
+
+    public static void unrollTo(int c, int m) {
+        while (curClass != c || curMethod != m) end();
     }
 
     public static void init() {
@@ -72,19 +76,21 @@ class _M {  // class for recording measurements
         for (int i = 0; i < classNames.length; i++) {
             for (int j = 0; j < methodNames[i].length; j++) {
                 int tmpLength = (classNames[i] + methodNames[i][j]).length();
-                int tmpTimel = (""+time[i][j]).length();
-                if(tmpLength > nameLength) nameLength = tmpLength;
-                if(tmpTimel > timeLength ) timeLength = tmpTimel;
+                int tmpTimel = ("" + time[i][j]).length();
+                if (tmpLength > nameLength) nameLength = tmpLength;
+                if (tmpTimel > timeLength) timeLength = tmpTimel;
             }
         }
-        nameLength+=timeLength;
-        String formatString = "%-" + (nameLength) + "s %"+timeLength+"d mus %"+timeLength+"d mus %"+timeLength+"d mus \n";
-        System.out.printf("%-" + (nameLength ) + "s    %"+timeLength+"s  %"+timeLength+"s   %"+timeLength+"s \n","", "time", " subMethod", "corrected");
+        nameLength += timeLength;
+        String formatString = "%-" + (nameLength) + "s %" + timeLength + "d mus %" + timeLength + "d mus %" + timeLength + "d mus \n";
+        System.out.printf("%-" + (nameLength) + "s    %" + timeLength + "s  %" + timeLength + "s   %" + timeLength + "s \n", "", "time", " subMethod", "corrected");
+        long sumCorrected = 0;
         for (int i = 0; i < classNames.length; i++) {
             for (int j = 0; j < methodNames[i].length; j++) {
-                System.out.printf(formatString, classNames[i] + "." + methodNames[i][j], time[i][j]/1000, corr[i][j]/1000, (time[i][j] - corr[i][j])/1000);
+                sumCorrected += (time[i][j] - corr[i][j]) / 1000;
+                System.out.printf(formatString, classNames[i] + "." + methodNames[i][j], time[i][j] / 1000, corr[i][j] / 1000, (time[i][j] - corr[i][j]) / 1000);
             }
         }
+        System.out.printf("\n\nOverall %d  Sum of corrected %d", overalltime, sumCorrected / 1000);
     }
 }
-

@@ -140,7 +140,7 @@ Java
 
 ClassBody
 = { IF(isMethodBlock())
-		[ "throws" ident {"," ident} ] "{"    (. nMethod++; blockDepth = 1;
+		[ "throws" ident ["," ident] ] "{"    (. nMethod++; blockDepth = 1;
                                 Token bTok = findMethodBegin();
 								System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
 								methodes.get(methodes.size() - 1).add(curMethod);
@@ -155,36 +155,38 @@ ClassBody
 	}
 	"}".
 
-Block< boolean unroll>
+Block<boolean unroll>
 =
+  (.System.out.println("unrolling: " + unroll);
+
+                                      if(unroll){ blockDepth++;
+                         							    insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.UNROLL, t.charPos + 1, true ));
+                         							}
+                         	       .)
+ {
 
 
-{
-
-"catch" "("  QualIdent { "|" QualIdent } ident ")"   (.System.out.println("catch"); .)
-                    Block<true>        (.blockDepth++;.)
-
-| "finally"                                                                    (.System.out.println("finally"); .)
-                                                      Block<true>        (.blockDepth++;.)
-
-
-|
 
     "{"
-                                              (.  if(unroll){
-                                                                         							    insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.UNROLL, la.charPos + 1, true ));
-                                                                         							}
-                                                                         	                 .)
 
-                                             (. blockDepth++;
-							                     System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col + "unrolling: " + unroll);
-					                         .)
+     (. blockDepth++;
+							System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col + "unrolling: " + unroll);
+					      .)
    Block<false>
 	| "return"     		  (.
 							System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
 							insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.RETURN, t.charPos, isReturnInBlock() ));
 						  .)
 	   {ANY} ";"
+	| "catch" "(" ident { "." ident} ident { "|" ident { "." ident} ident} ")" "{"  (.System.out.println("catch"); .)
+	   Block<true>
+	   (.System.out.println("after catch");.)
+	| "finally"    "{"       (.System.out.println("finally"); .)
+	   Block<true>
+                    	   (.System.out.println("after finally");.)
+
+
+
 	| ANY
 	}
 	"}"                   (.
@@ -196,10 +198,5 @@ Block< boolean unroll>
 						   .)
 	.
 
-QualIdent =
-    ident { "." ident}.
-
-FormalParameter =
-    QualIdent ident.
 
 END Java.

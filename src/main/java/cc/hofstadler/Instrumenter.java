@@ -33,6 +33,7 @@ public class Instrumenter {
                         }
                         case InsertPoint.START -> sb.insert(insertPoint.charPos, "_M.init(); _M.beg("+ insertPoint.nClass +", " + insertPoint.nMethod +");");
                         case InsertPoint.EXIT -> sb.insert(insertPoint.charPos, "_M.end(); _M.printResults();");
+                        case InsertPoint.UNROLL -> sb.insert(insertPoint.charPos, "_M.unrollTo("+ insertPoint.nClass +", " + insertPoint.nMethod +");");
 
                     }
                 } );
