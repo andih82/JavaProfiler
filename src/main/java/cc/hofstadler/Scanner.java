@@ -283,8 +283,8 @@ public class Scanner {
 		start.set(123, 7); 
 		start.set(125, 8); 
 		start.set(44, 15); 
-		start.set(124, 16); 
-		start.set(59, 17); 
+		start.set(59, 16); 
+		start.set(124, 17); 
 		start.set(46, 18); 
 		start.set(Buffer.EOF, -1);
 		literals.put("void", 5);
@@ -294,9 +294,9 @@ public class Scanner {
 		literals.put("else", 9);
 		literals.put("throws", 10);
 		literals.put("class", 15);
-		literals.put("catch", 17);
-		literals.put("finally", 19);
-		literals.put("return", 20);
+		literals.put("return", 17);
+		literals.put("catch", 19);
+		literals.put("finally", 21);
 
 	}
 	
@@ -488,7 +488,7 @@ public class Scanner {
 				case 16:
 					{t.kind = 18; break loop;}
 				case 17:
-					{t.kind = 21; break loop;}
+					{t.kind = 20; break loop;}
 				case 18:
 					{t.kind = 22; break loop;}
 

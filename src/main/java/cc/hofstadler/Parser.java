@@ -204,7 +204,7 @@ public class Parser {
 				nMethod = -1;
 				curClass  = t.val;
 				classes.add(curClass);
-				methodes.add(new ArrayList<String>()); 
+				methodes.add(new ArrayList<String>());
 				
 				while (StartOf(2)) {
 					Get();
@@ -230,7 +230,7 @@ public class Parser {
 				}
 				Expect(13);
 				nMethod++; blockDepth = 1;
-				Token bTok = findMethodBegin();
+				     Token bTok = findMethodBegin();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
 				methodes.get(methodes.size() - 1).add(curMethod);
 				insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.START :  InsertPoint.BEGINN, bTok.charPos + 1, true ));
@@ -239,7 +239,7 @@ public class Parser {
 			} else if (la.kind == 13) {
 				Get();
 				blockDepth++; curMethod = "";
-				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col); 
+				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col);
 				
 				Block(false);
 			} else {
@@ -250,36 +250,18 @@ public class Parser {
 	}
 
 	void Block(boolean unroll) {
+		if(unroll){
+		 insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.UNROLL, t.charPos + 1, true ));
+		}
+		
 		while (StartOf(3)) {
-			if (la.kind == 17) {
+			if (la.kind == 13) {
 				Get();
-				Expect(11);
-				QualIdent();
-				while (la.kind == 18) {
-					Get();
-					QualIdent();
-				}
-				Expect(1);
-				Expect(12);
-				System.out.println("catch"); 
-				Block(true);
-				blockDepth++;
-			} else if (la.kind == 19) {
-				Get();
-				System.out.println("finally"); 
-				Block(true);
-				blockDepth++;
-			} else if (la.kind == 13) {
-				Get();
-				if(unroll){
-				                      							    insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.UNROLL, la.charPos + 1, true ));
-				                      							}
-				                      	                 
 				blockDepth++;
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col + "unrolling: " + unroll);
 				
 				Block(false);
-			} else if (la.kind == 20) {
+			} else if (la.kind == 17) {
 				Get();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
 				insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.RETURN, t.charPos, isReturnInBlock() ));
@@ -287,7 +269,26 @@ public class Parser {
 				while (StartOf(4)) {
 					Get();
 				}
-				Expect(21);
+				Expect(18);
+			} else if (la.kind == 19 || la.kind == 21) {
+				if (la.kind == 19) {
+					Get();
+					Expect(11);
+					QualIdent();
+					while (la.kind == 20) {
+						Get();
+						QualIdent();
+					}
+					Expect(1);
+					Expect(12);
+					System.out.println("catch"); 
+				} else {
+					Get();
+				}
+				System.out.println("finally"); 
+				Expect(13);
+				Block(true);
+				blockDepth++;
 			} else {
 				Get();
 			}
@@ -295,7 +296,7 @@ public class Parser {
 		Expect(14);
 		System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "end " + nMethod + ": line " + t.line + ", col " + t.col+ (unroll ? "unrollTo Block" :""));
 		blockDepth--;
-		if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod)){
+		if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod) && !unroll){
 		insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.EXIT :  InsertPoint.END, t.charPos, false ));
 		}
 		
@@ -307,11 +308,6 @@ public class Parser {
 			Get();
 			Expect(1);
 		}
-	}
-
-	void FormalParameter() {
-		QualIdent();
-		Expect(1);
 	}
 
 
@@ -331,7 +327,7 @@ public class Parser {
 		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
 		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
 		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _x}
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _x}
 
 	};
 } // end Parser
@@ -373,11 +369,11 @@ class Errors {
 			case 14: s = "rbrace expected"; break;
 			case 15: s = "\"class\" expected"; break;
 			case 16: s = "\",\" expected"; break;
-			case 17: s = "\"catch\" expected"; break;
-			case 18: s = "\"|\" expected"; break;
-			case 19: s = "\"finally\" expected"; break;
-			case 20: s = "\"return\" expected"; break;
-			case 21: s = "\";\" expected"; break;
+			case 17: s = "\"return\" expected"; break;
+			case 18: s = "\";\" expected"; break;
+			case 19: s = "\"catch\" expected"; break;
+			case 20: s = "\"|\" expected"; break;
+			case 21: s = "\"finally\" expected"; break;
 			case 22: s = "\".\" expected"; break;
 			case 23: s = "??? expected"; break;
 			default: s = "error " + n; break;
