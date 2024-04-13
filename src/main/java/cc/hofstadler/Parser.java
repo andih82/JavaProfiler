@@ -63,12 +63,6 @@ public class Parser {
 	private int top = 0;
 	private int bufLen = 0;
 
-	static final String BEGINN = "BEGINN";
-	static final String END = "END";
-	static final String RETURN = "RETURN";
-	static final String START = "START";
-	static final String EXIT = "EXIT";
-
 	String curMethod = "";
 	String curClass = "";
 	boolean isVoidMethode = false;
@@ -235,13 +229,13 @@ public class Parser {
 				methodes.get(methodes.size() - 1).add(curMethod);
 				insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.START :  InsertPoint.BEGINN, bTok.charPos + 1, true ));
 				
-				Block(false);
+				Block(false, true);
 			} else if (la.kind == 13) {
 				Get();
 				blockDepth++; curMethod = "";
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col);
 				
-				Block(false);
+				Block(false, false);
 			} else {
 				Get();
 			}
@@ -249,7 +243,7 @@ public class Parser {
 		Expect(14);
 	}
 
-	void Block(boolean unroll) {
+	void Block(boolean unroll, boolean method) {
 		if(unroll){
 		 insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.UNROLL, t.charPos + 1, true ));
 		}
@@ -260,7 +254,7 @@ public class Parser {
 				blockDepth++;
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col + "unrolling: " + unroll);
 				
-				Block(false);
+				Block(false, false);
 			} else if (la.kind == 17) {
 				Get();
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
@@ -287,16 +281,17 @@ public class Parser {
 				}
 				System.out.println("finally"); 
 				Expect(13);
-				Block(true);
+				Block(true, false);
 				blockDepth++;
 			} else {
 				Get();
 			}
 		}
 		Expect(14);
-		System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "end " + nMethod + ": line " + t.line + ", col " + t.col+ (unroll ? "unrollTo Block" :""));
+		System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "end " + nMethod + ": line " + t.line + ", col " + t.col+ (unroll ? "unrollTo Block" :"") + (method ? " method end" : ""));
 		blockDepth--;
-		if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod) && !unroll){
+		//if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod) && !unroll){
+		if( method && isVoidMethode){
 		insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.EXIT :  InsertPoint.END, t.charPos, false ));
 		}
 		

@@ -55,4 +55,15 @@ public class JavaTests {
         Thread.sleep(100);
         System.out.println("baz() expected: 300 ms");
     }
+
+    class NestedClass{
+
+        void someMethod(){
+            int i = 1+1;
+        }
+
+        class DoublNestedClass{
+
+        }
+    }
 }
