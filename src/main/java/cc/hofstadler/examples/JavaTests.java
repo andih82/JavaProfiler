@@ -1,4 +1,4 @@
-package cc.hofstadler;
+package cc.hofstadler.examples;
 
 import java.io.IOException;
 import java.nio.file.Path;
