@@ -1,183 +1,142 @@
-
 public class ExceptionExamples {
 
     public static void main(String[] args) {
-        normalTryCatchFinallyBlock();
-        normalTryCatchBlock();
-        normalTryFinallyBlock();
-        nestedTryCatchFinallyBlock();
-        nestedTryCatchBlock();
-        nestedTryFinallyBlock();
+        try {
+            normalTryCatchFinallyBlock();
+            normalTryCatchBlock();
+            normalTryFinallyBlock();
+            nestedTryCatchFinallyBlock();
+            nestedTryCatchBlock();
+            nestedTryFinallyBlock();
+        } catch (InterruptedException ire){
+            throw new RuntimeException(ire);
+        } catch (Exception e){
+
+        }
+        System.out.println("ExceptionExamples.notCatching  ... 100 ms");
     }
 
-    public static void normalTryCatchFinallyBlock() {
-        System.out.println("ExceptionExamples.normalTryCatchFinallyBlock");
-        System.out.println("enter...");
+    public static void normalTryCatchFinallyBlock() throws InterruptedException {
         try {
-            waiting();   //100
-            System.out.println("try");
+            Thread.sleep(100);   //100
             throwing();
         } catch (Exception e) {
-            waiting();  //100
-            System.out.println("catch");
+            Thread.sleep(100);  //100
         } finally {
-            waiting();  //100
-            System.out.println("finally");
+            Thread.sleep(100);  //100
         }
-        System.out.println("exit..."); //300
         System.out.println("ExceptionExamples.normalTryCatchFinallyBlock  ... 300 ms");
     }
 
-    public static void normalTryCatchBlock() {
-        System.out.println("ExceptionExamples.normalTryCatchBlock");
-        System.out.println("enter...");
-        waiting();  // 100
+    public static void normalTryCatchBlock() throws InterruptedException {
+        Thread.sleep(100);  // 100
         try {
-            System.out.println("try");
-            waiting();  // 100
+            Thread.sleep(100);  // 100
             throwing();
         } catch (Exception e) {
-            System.out.println("catch");
-            waiting(); // 100
+            Thread.sleep(100); // 100
         }
-        waiting();  // 100
-        System.out.println("exit...");
+        Thread.sleep(100);  // 100
         System.out.println("ExceptionExamples.normalTryCatchBlock  ...  400 ms");
     }
 
-    public static void normalTryFinallyBlock() {
-        System.out.println("ExceptionExamples.normalTryFinallyBlock");
-        System.out.println("enter...");
-        waiting();  // 100
+    public static void normalTryFinallyBlock() throws InterruptedException {
+        Thread.sleep(100);  // 100
         try {
-            waiting();  // 100
-            System.out.println("try");
+            Thread.sleep(100);  // 100
         } finally {
-            waiting();  // 100
-            System.out.println("finally");
+            Thread.sleep(100);  // 100
         }
-        waiting();  // 100
-        System.out.println("exit...");
+        Thread.sleep(100);  // 100
         System.out.println("ExceptionExamples.normalTryFinallyBlock  ... 400 ms");
     }
 
-    public static void nestedTryCatchFinallyBlock() {
-        System.out.println("enter...");
-        waiting();
+    public static void nestedTryCatchFinallyBlock() throws InterruptedException {
+        Thread.sleep(100);  // 100
         try {
-            System.out.println("try");
-            waiting();
+            Thread.sleep(100);  // 100
             try {
-                System.out.println("  nested try");
-                waiting();
+                Thread.sleep(100);  // 100
             } catch (Exception e) {
-                System.out.println("  nested catch");
-                waiting();
+                Thread.sleep(100);  //  0  not reached
             } finally {
-                System.out.println("  nested finally");
-                waiting();
+                Thread.sleep(100);  // 100
             }
         } catch (Exception e) {
-            System.out.println("catch");
-            waiting();
+            Thread.sleep(100);    //  0  not reached
             try {
                 throwing();
-                System.out.println("  nested try");
-                waiting();
+                Thread.sleep(100); //  0  not reached
             } catch (Exception e1) {
-                System.out.println("  nested catch");
-                waiting();
+                Thread.sleep(100); //  0  not reached
             } finally {
-                System.out.println("  nested finally");
-                waiting();
+                Thread.sleep(100); //  0  not reached
             }
         } finally {
-            System.out.println("finally");
-            waiting();
+            Thread.sleep(100);  // 100
             try {
-                System.out.println("  nested try");
-                waiting();
+                Thread.sleep(100);  // 100
             } catch (Exception e) {
-                System.out.println("  nested catch");
-                waiting();
+                Thread.sleep(100);   //  0  not reached
             } finally {
-                System.out.println("  nested finally");
-                waiting();
+                Thread.sleep(100);  // 100
             }
         }
-        System.out.println("exit...");
+        System.out.println("ExceptionExamples.nestedTryCatchFinallyBlock ... 700 ms ");
+
     }
 
-    public static void nestedTryCatchBlock() {
-        System.out.println("enter...");
-        waiting();
+    public static void nestedTryCatchBlock() throws InterruptedException {
+        Thread.sleep(100);  // 100
         try {
-            System.out.println("try");
-            waiting();
+            Thread.sleep(100); // 100
+            throwing();
         } catch (Exception e) {
-            System.out.println("catch");
-            waiting();
+            Thread.sleep(100);  // 100
             try {
-                System.out.println("  nested try");
-                waiting();
+                Thread.sleep(100); // 100
                 try {
-                    System.out.println("  multi nested try");
-                    waiting();
+                    throwing();
+                    Thread.sleep(100);  //no
                 } catch (Exception e1) {
-                    System.out.println("  multi nested catch");
-                    waiting();
+                    Thread.sleep(100);  // 100
                 } finally {
-                    System.out.println("  multi nested finally");
-                    waiting();
+                    Thread.sleep(100);  // 100
                 }
             } catch (Exception e1) {
-                System.out.println("  nested catch");
-                waiting();
+                Thread.sleep(100);  // no
             } finally {
-                System.out.println("  nested finally");
-                waiting();
+                Thread.sleep(100);  // 100
             }
         }
-        System.out.println("exit...");
+        System.out.println("ExceptionExamples.nestedTryCatchBlock ... 700 ms");
     }
 
-    public static void nestedTryFinallyBlock() {
-        System.out.println("enter...");
-        waiting();
+    public static void nestedTryFinallyBlock() throws Exception {
+        Thread.sleep(100);  // 100
         try {
-            System.out.println("try");
-            waiting();
+            notCatching();
+            Thread.sleep(100);  // no
         } finally {
-            System.out.println("finally");
-            waiting();
+            Thread.sleep(100);  // 100
             try {
-                System.out.println("  nested try");
-                waiting();
+                Thread.sleep(100);   // 100
             } catch (Exception e) {
-                System.out.println("  nested catch");
-                waiting();
+                Thread.sleep(100);  // no
             } finally {
-                System.out.println("  nested finally");
-                waiting();
+                Thread.sleep(100);  // 100
             }
+            System.out.println("ExceptionExamples.nestedTryFinallyBlock ... 400 ms ");
         }
-        System.out.println("exit...");
+        System.out.println("unreached");
     }
 
     public static void throwing() throws Exception {
         if (true)throw new Exception();
     }
     public static void notCatching() throws Exception {
-        waiting();
+        Thread.sleep(100);
         throwing();
     }
 
-
-    public static void waiting(){
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

@@ -31,7 +31,7 @@ public class JavaTests {
         try {
             Thread.sleep(100L);
             baz();        // throws exception
-            Thread.sleep(100L);  
+            Thread.sleep(100L);  // Not reached
         } catch (Exception e){
             Thread.sleep(100L); 
             System.out.println("exception");
@@ -51,6 +51,6 @@ public class JavaTests {
 
     public static void bas() throws InterruptedException {
         Thread.sleep(100L);
-        System.out.println("baz() expected: 300 ms");
+        System.out.println("bas() expected: 300 ms");
     }
 }

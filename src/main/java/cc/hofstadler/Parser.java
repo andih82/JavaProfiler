@@ -278,8 +278,8 @@ public class Parser {
 					System.out.println("catch"); 
 				} else {
 					Get();
+					System.out.println("finally"); 
 				}
-				System.out.println("finally"); 
 				Expect(13);
 				Block(true, false);
 				blockDepth++;

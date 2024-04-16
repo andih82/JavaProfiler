@@ -172,9 +172,9 @@ Block< boolean unroll, boolean method>
 	   {ANY} ";"
 	|  (("catch" "("  QualIdent { "|" QualIdent } ident ")" )
 	                                         (. System.out.println("catch"); .)
-       | ("finally" ))
+       | ("finally" )
                                              (. System.out.println("finally"); .)
-       "{"
+       )"{"
        Block<true, false>
                                              (.blockDepth++;.)
 	| ANY

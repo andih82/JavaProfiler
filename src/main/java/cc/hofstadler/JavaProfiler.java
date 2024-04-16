@@ -1,5 +1,9 @@
 package cc.hofstadler;
 
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,10 +31,20 @@ public class JavaProfiler {
 
 		absolutePath = FileUtils.getAbsolutePath(args[0]);
 
-
+		System.out.println();
+		System.out.println("#############################################################");
+		System.out.println("# Analyze ...                                               #");
+		System.out.println("#############################################################");
+		System.out.println();
 		Scanner scanner = new Scanner(args[0]);
 		Parser parser = new Parser(scanner);
 		parser.Parse();
+
+		System.out.println();
+		System.out.println("#############################################################");
+		System.out.println("# Instrumment ...                                           #");
+		System.out.println("#############################################################");
+		System.out.println();
 		Instrumenter instrumenter = new Instrumenter(parser.classes, parser.methodes, parser.insertPoints);
 
 		String instrumented = instrumenter.instrument(FileUtils.readFileToString(args[0]));
@@ -39,7 +53,21 @@ public class JavaProfiler {
 		FileUtils.writeStringToFile(instrumented, absolutePath,fileName, profileDir);
 		FileUtils.writeStringToFile(inited_M,absolutePath,"_M.java", profileDir);
 
-		System.out.println(parser.errors.count + " errors detected");
+		System.out.println();
+		System.out.println("#############################################################");
+		System.out.println("# Compile ...                                               #");
+		System.out.println("#############################################################");
+		System.out.println();
+		try {
+			Executor.compile(absolutePath + File.separator + profileDir);
+			Executor.run(absolutePath + File.separator + profileDir , fileName.substring(0,fileName.lastIndexOf(".")));
+
+		}catch (IOException ioe){
+			System.out.println(ioe.getMessage());
+		} catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(parser.errors.count + " errors detected");
 	}
 }
 
@@ -86,5 +114,31 @@ class FileUtils{
 		if(Files.isRegularFile(p)){
 			return p.getFileName().toString();
 		}else throw new IllegalArgumentException("Not a file: " + arg);
+	}
+}
+
+class Executor {
+
+	public static void compile(String path) throws IOException {
+		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+		StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+
+		Iterable<? extends JavaFileObject> compilationUnits1 =
+				fileManager.getJavaFileObjectsFromPaths(Files.list(Path.of(path)).toList());
+		compiler.getTask(null, fileManager, null, null, null, compilationUnits1).call();
+
+		fileManager.close();
+	}
+
+	public static void run(String path, String mainFile) throws IOException, InterruptedException {
+		Process p = Runtime.getRuntime().exec("java -cp " + path + " " + mainFile);
+
+		p.getInputStream();
+		BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		String line;
+		while ((line = in.readLine()) != null) {
+			System.out.println("...  " + line);
+		}
+		p.waitFor();
 	}
 }
