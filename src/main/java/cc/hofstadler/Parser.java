@@ -191,27 +191,35 @@ public class Parser {
 	void Java() {
 		while (StartOf(1)) {
 			if (la.kind == 15) {
-				Get();
-				Expect(1);
-				nClass++;
-				System.out.println("----- " + nClass + " class " + t.val);
-				nMethod = -1;
-				curClass  = t.val;
-				classes.add(curClass);
-				methodes.add(new ArrayList<String>());
-				
+				ClassDeclaration(false);
 				while (StartOf(2)) {
 					Get();
 				}
 				Expect(13);
-				ClassBody();
+				ClassBody(false);
 			} else {
 				Get();
 			}
 		}
 	}
 
-	void ClassBody() {
+	void ClassDeclaration(boolean innerClass) {
+		Expect(15);
+		Expect(1);
+		if(innerClass){
+		 System.out.println("----- " + nClass + " Iner  class " + t.val);
+		 }else{
+		nClass++;
+		System.out.println("----- " + nClass + " class " + t.val);
+		nMethod = -1;
+		curClass  = t.val;
+		classes.add(curClass);
+		methodes.add(new ArrayList<String>());
+		}
+		
+	}
+
+	void ClassBody(boolean innerClass) {
 		while (StartOf(3)) {
 			if (isMethodBlock()) {
 				if (la.kind == 10) {
@@ -236,11 +244,24 @@ public class Parser {
 				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col);
 				
 				Block(false, false);
+			} else if (la.kind == 15) {
+				ClassDeclaration(true);
+				while (StartOf(2)) {
+					Get();
+				}
+				Expect(13);
+				ClassBody(true);
 			} else {
 				Get();
 			}
 		}
 		Expect(14);
+		if(innerClass){
+		                                                                                                 System.out.println("----- end: " + nClass + " inner  class " + t.val);
+		                                                                                                 }else{
+		                                                                   							   System.out.println("----- end: " + nClass + " " +curClass+" " + t.val);
+		                                                                   							   }
+		                                                                   							   
 	}
 
 	void Block(boolean unroll, boolean method) {

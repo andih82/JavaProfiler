@@ -121,20 +121,29 @@ IGNORE '\r' + '\n' + '\t'
 PRODUCTIONS
 
 Java
-= { "class" ident
-                            (. nClass++;
-							   System.out.println("----- " + nClass + " class " + t.val);
-							   nMethod = -1;
-							   curClass  = t.val;
-							   classes.add(curClass);
-							   methodes.add(new ArrayList<String>());
-							.)
+= { ClassDeclaration<false>
     {ANY} "{"
-    ClassBody
+    ClassBody<false>
   | ANY
   }.
 
-ClassBody
+ClassDeclaration<boolean innerClass>
+= "class" ident                                    (.  if(innerClass){
+                                                         System.out.println("----- " + nClass + " Iner  class " + t.val);
+
+                                                       }else{
+                                                       nClass++;
+                           							   System.out.println("----- " + nClass + " class " + t.val);
+                           							   nMethod = -1;
+                           							   curClass  = t.val;
+                           							   classes.add(curClass);
+                           							   methodes.add(new ArrayList<String>());
+                           							   }
+                           							.)
+
+.
+
+ClassBody<boolean innerClass>
 = { IF(isMethodBlock())
 	[ "throws" ident {"," ident} ] "{"
 		                                      (. nMethod++; blockDepth = 1;
@@ -149,9 +158,19 @@ ClassBody
 			                                     System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col);
 							                  .)
 		Block<false, false>  // non-method block
+    | ClassDeclaration<true> {ANY} "{"
+                                 ClassBody<true>
 	|   ANY
 	}
-	"}".
+	"}"
+	   (.if(innerClass){
+                                                                                                        System.out.println("----- end: " + nClass + " inner  class " + t.val);
+
+                                                                                                      }else{
+                                                                          							   System.out.println("----- end: " + nClass + " " +curClass+" " + t.val);
+                                                                          							   }
+                                                                          							   .)
+	.
 
 Block< boolean unroll, boolean method>
 =
