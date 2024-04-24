@@ -38,6 +38,7 @@ public class JavaProfiler {
 		System.out.println();
 		Scanner scanner = new Scanner(args[0]);
 		Parser parser = new Parser(scanner);
+		parser.loc = new Locator();
 		parser.Parse();
 
 		System.out.println();
@@ -45,7 +46,7 @@ public class JavaProfiler {
 		System.out.println("# Instrumment ...                                           #");
 		System.out.println("#############################################################");
 		System.out.println();
-		Instrumenter instrumenter = new Instrumenter(parser.classes, parser.methodes, parser.insertPoints);
+		Instrumenter instrumenter = new Instrumenter(parser.loc.getClasses(), parser.loc.getMethodes(), parser.loc.getInsertPoints());
 
 		String instrumented = instrumenter.instrument(FileUtils.readFileToString(args[0]));
 		String inited_M = instrumenter.init_M(FileUtils.readFileToString("src\\main\\java\\cc\\hofstadler\\_M.frame") );
@@ -138,6 +139,10 @@ class Executor {
 		String line;
 		while ((line = in.readLine()) != null) {
 			System.out.println("...  " + line);
+		}
+		BufferedReader ein = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+		while ((line = ein.readLine()) != null) {
+			System.err.println("...  " + line);
 		}
 		p.waitFor();
 	}

@@ -1,6 +1,11 @@
 import java.math.BigDecimal;
 class _M {  // class for recording measurements
 
+    static{
+        init();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> printResults()));
+    }
+
     //----- metadata initialized in init metho
     static String[] classNames;    // class names
     static String[][] methodNames;    // method names
@@ -31,14 +36,9 @@ class _M {  // class for recording measurements
         top--;
         long currTime = System.nanoTime() - times[top];  // compute run time of current method
         time[curClass][curMethod] += currTime;
-        // only correct if not root method, else ste overalltime
-        if (top == 0) {
-            overalltime = System.currentTimeMillis() - overalltime;
-            return;
-        }
         curClass = classes[top];
         curMethod = methods[top];
-        corr[curClass][curMethod] += currTime;
+        if(top>0) corr[curClass][curMethod] += currTime;
     }
 
     public static void unrollTo(int c, int m) {
@@ -68,6 +68,8 @@ class _M {  // class for recording measurements
     }
 
     public static void printResults() {
+        overalltime = System.currentTimeMillis() - overalltime;
+
         System.out.println("\n----- Results: ");
         System.out.println("Overall time: " + overalltime + " millis");
 

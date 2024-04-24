@@ -1,33 +1,5 @@
 package cc.hofstadler;
 
-import java.util.List;
-import java.util.ArrayList;
-
-class InsertPoint{
-
-    static final int BEGINN = 0;
-	static final int END = 1;
-	static final int RETURN = 2;
-	static final int START = 3;
-	static final int EXIT = 4;
-	static final int UNROLL = 5;
-
-    int nClass;
-    int nMethod;
-    int typ;
-    int charPos;
-    boolean isBlock;
-
-    public InsertPoint(int nClass, int nMethod, int typ, int charPos, boolean isBlock){
-        this.nClass = nClass;
-        this.nMethod = nMethod;
-        this.typ = typ;
-        this.charPos = charPos;
-        this.isBlock = isBlock;
-    }
-}
-
-
 
 public class Parser {
 	public static final int _EOF = 0;
@@ -64,14 +36,8 @@ public class Parser {
 	private int bufLen = 0;
 
 	String curMethod = "";
-	String curClass = "";
 	boolean isVoidMethode = false;
-	int nClass = -1;
-	int nMethod = -1;
-	int blockDepth = 0;
-	List<String> classes = new ArrayList<String>();
-	List<List<String>> methodes = new ArrayList<List<String>>();
-	List<InsertPoint> insertPoints = new ArrayList();
+    Locator loc;
 
 	int pos(int i) {
 		if (i >= 0) return i; else return i + SIZE;
@@ -88,7 +54,7 @@ public class Parser {
 					if (level == 0) {
 						if (buf[pos(i-1)].kind == _ident) {
 							curMethod = buf[pos(i-1)].val;
-                            isVoidMethode = buf[pos(i-2)].kind == _void_ || curClass.equals(curMethod);
+                            isVoidMethode = buf[pos(i-2)].kind == _void_ || loc.getCurrClassName().equals(curMethod);
 							return true;
 						} else return false;
 					}
@@ -207,14 +173,9 @@ public class Parser {
 		Expect(15);
 		Expect(1);
 		if(innerClass){
-		 System.out.println("----- " + nClass + " Iner  class " + t.val);
-		 }else{
-		nClass++;
-		System.out.println("----- " + nClass + " class " + t.val);
-		nMethod = -1;
-		curClass  = t.val;
-		classes.add(curClass);
-		methodes.add(new ArrayList<String>());
+		 loc.registerInnerClass(t);
+		} else {
+		loc.registerClass(t);
 		}
 		
 	}
@@ -231,18 +192,12 @@ public class Parser {
 					}
 				}
 				Expect(13);
-				nMethod++; blockDepth = 1;
-				     Token bTok = findMethodBegin();
-				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " " + curMethod + ": line " + bTok.line + ", col " + bTok.col);
-				methodes.get(methodes.size() - 1).add(curMethod);
-				insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.START :  InsertPoint.BEGINN, bTok.charPos + 1, true ));
+				Token bTok = findMethodBegin();
+				loc.registerMethod(bTok, curMethod);
 				
 				Block(false, true);
 			} else if (la.kind == 13) {
 				Get();
-				blockDepth++; curMethod = "";
-				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod + " NOMETHODE line " + t.line + ", col " + t.col);
-				
 				Block(false, false);
 			} else if (la.kind == 15) {
 				ClassDeclaration(true);
@@ -257,29 +212,23 @@ public class Parser {
 		}
 		Expect(14);
 		if(innerClass){
-		                                                                                                 System.out.println("----- end: " + nClass + " inner  class " + t.val);
-		                                                                                                 }else{
-		                                                                   							   System.out.println("----- end: " + nClass + " " +curClass+" " + t.val);
-		                                                                   							   }
-		                                                                   							   
+		    loc.leaveInnerClass(t);
+		  }
+		
 	}
 
 	void Block(boolean unroll, boolean method) {
 		if(unroll){
-		 insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.UNROLL, t.charPos + 1, true ));
+		 loc.registerUnroll(t);
 		}
 		
 		while (StartOf(3)) {
 			if (la.kind == 13) {
 				Get();
-				blockDepth++;
-				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "beg " + nMethod +  " line " + t.line + ", col " + t.col + "unrolling: " + unroll);
-				
 				Block(false, false);
 			} else if (la.kind == 17) {
 				Get();
-				System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "return " + nMethod + " line " + t.line + ", col " + t.col + ", braces " + isReturnInBlock() );
-				insertPoints.add(new InsertPoint( nClass, nMethod, InsertPoint.RETURN, t.charPos, isReturnInBlock() ));
+				loc.registerReturn(t, isReturnInBlock());
 				
 				while (StartOf(4)) {
 					Get();
@@ -296,26 +245,20 @@ public class Parser {
 					}
 					Expect(1);
 					Expect(12);
-					System.out.println("catch"); 
 				} else {
 					Get();
-					System.out.println("finally"); 
 				}
 				Expect(13);
 				Block(true, false);
-				blockDepth++;
 			} else {
 				Get();
 			}
 		}
 		Expect(14);
-		System.out.printf("%" + (blockDepth * 2)+ "s %s \n", "", "end " + nMethod + ": line " + t.line + ", col " + t.col+ (unroll ? "unrollTo Block" :"") + (method ? " method end" : ""));
-		blockDepth--;
-		//if(blockDepth == 0 && isVoidMethode && !"".equals(curMethod) && !unroll){
 		if( method && isVoidMethode){
-		insertPoints.add(new InsertPoint( nClass, nMethod, "main".equals(curMethod) ? InsertPoint.EXIT :  InsertPoint.END, t.charPos, false ));
-		}
-		
+		   loc.leaveVoidMethod(t);
+		                 }
+		   
 	}
 
 	void QualIdent() {
