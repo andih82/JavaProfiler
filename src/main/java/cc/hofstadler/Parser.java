@@ -17,7 +17,11 @@ public class Parser {
 	public static final int _rpar = 12;
 	public static final int _lbrace = 13;
 	public static final int _rbrace = 14;
-	public static final int maxT = 23;
+	public static final int _ldiamond = 15;
+	public static final int _rdiamond = 16;
+	public static final int _comma = 17;
+	public static final int _new_ = 18;
+	public static final int maxT = 28;
 
 	static final boolean _T = true;
 	static final boolean _x = false;
@@ -36,6 +40,7 @@ public class Parser {
 	private int bufLen = 0;
 
 	String curMethod = "";
+	String packageString = "";
 	boolean isVoidMethode = false;
     Locator loc;
 
@@ -64,6 +69,32 @@ public class Parser {
 		}
 		return false;
 	}
+
+	boolean isAnonymClassDeclariation() {
+        if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar)) {
+            int level = 1;
+    	    int i = pos(top-3);
+    	    while (i != top &&  i <= bufLen ) {
+            	if (buf[i].kind == _rpar) level++;
+            	else if (buf[i].kind == _lpar) {
+            		level--;
+            		if (level == 0) {
+            		   i = pos(i-1);
+                       while (i != top &&  i <= bufLen ) {
+                          if(buf[i].kind == _new_) {
+                             return true;
+                          } else if ( !(buf[i].kind == _ident || buf[i].kind == _ldiamond || buf[i].kind == _rdiamond || buf[i].kind == _comma ) ) {
+        	                 return false;
+        	              }
+                          i = pos(i-1);
+                      }
+                    }
+                }
+                i = pos(i-1);
+            }
+        }
+        return false;
+    }
 
     Token findMethodBegin() {
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
@@ -155,29 +186,41 @@ public class Parser {
 	}
 	
 	void Java() {
+		if (la.kind == 27) {
+			PackageDeclaration();
+		}
+		loc.registerPackage(t, packageString); 
 		while (StartOf(1)) {
-			if (la.kind == 15) {
+			if (la.kind == 19) {
 				ClassDeclaration(false);
-				while (StartOf(2)) {
-					Get();
-				}
-				Expect(13);
-				ClassBody(false);
 			} else {
 				Get();
 			}
 		}
 	}
 
-	void ClassDeclaration(boolean innerClass) {
-		Expect(15);
+	void PackageDeclaration() {
+		Expect(27);
 		Expect(1);
-		if(innerClass){
-		 loc.registerInnerClass(t);
-		} else {
-		loc.registerClass(t);
+		packageString = t.val; 
+		while (la.kind == 23) {
+			Get();
+			Expect(1);
+			packageString += "." + t.val; 
 		}
-		
+		Expect(21);
+	}
+
+	void ClassDeclaration(boolean innerClass) {
+		Expect(19);
+		Expect(1);
+		if(innerClass) loc.registerInnerClass(t, false); 
+		else loc.registerClass(t); 
+		while (StartOf(2)) {
+			Get();
+		}
+		Expect(13);
+		ClassBody(innerClass);
 	}
 
 	void ClassBody(boolean innerClass) {
@@ -186,84 +229,93 @@ public class Parser {
 				if (la.kind == 10) {
 					Get();
 					Expect(1);
-					while (la.kind == 16) {
+					while (la.kind == 17) {
 						Get();
 						Expect(1);
 					}
 				}
 				Expect(13);
-				Token bTok = findMethodBegin();
-				loc.registerMethod(bTok, curMethod);
-				
-				Block(false, true);
+				loc.registerMethod(findMethodBegin(), curMethod); 
+				Block(false, isVoidMethode);
+			} else if (isAnonymClassDeclariation()) {
+				Expect(13);
+				loc.registerInnerClass(t, true); 
+				ClassBody(true);
+			} else if (la.kind == 19) {
+				ClassDeclaration(true);
 			} else if (la.kind == 13) {
 				Get();
 				Block(false, false);
-			} else if (la.kind == 15) {
-				ClassDeclaration(true);
-				while (StartOf(2)) {
-					Get();
-				}
-				Expect(13);
-				ClassBody(true);
 			} else {
 				Get();
 			}
 		}
 		Expect(14);
-		if(innerClass){
-		    loc.leaveInnerClass(t);
-		  }
-		
+		if(innerClass) loc.leaveInnerClass(t); 
 	}
 
-	void Block(boolean unroll, boolean method) {
-		if(unroll){
-		 loc.registerUnroll(t);
-		}
-		
+	void Block(boolean unroll, boolean methodEnd) {
+		if(unroll) loc.registerUnroll(t); 
 		while (StartOf(3)) {
-			if (la.kind == 13) {
+			if (isAnonymClassDeclariation()) {
+				Expect(13);
+				loc.registerInnerClass(t, true); 
+				ClassBody(true);
+			} else if (la.kind == 13) {
 				Get();
 				Block(false, false);
-			} else if (la.kind == 17) {
-				Get();
-				loc.registerReturn(t, isReturnInBlock());
-				
-				while (StartOf(4)) {
-					Get();
-				}
-				Expect(18);
-			} else if (la.kind == 19 || la.kind == 21) {
-				if (la.kind == 19) {
-					Get();
-					Expect(11);
-					QualIdent();
-					while (la.kind == 20) {
-						Get();
-						QualIdent();
-					}
-					Expect(1);
-					Expect(12);
-				} else {
-					Get();
-				}
-				Expect(13);
-				Block(true, false);
+			} else if (la.kind == 20) {
+				ReturnStatement();
+			} else if (la.kind == 22) {
+				ExitStatement();
+			} else if (la.kind == 24 || la.kind == 26) {
+				UnrollBlock();
 			} else {
 				Get();
 			}
 		}
 		Expect(14);
-		if( method && isVoidMethode){
-		   loc.leaveVoidMethod(t);
-		                 }
-		   
+		if(methodEnd) loc.leaveVoidMethod(t); 
+	}
+
+	void ReturnStatement() {
+		Expect(20);
+		loc.registerReturn(t, isReturnInBlock());
+		while (StartOf(4)) {
+			Get();
+		}
+		Expect(21);
+	}
+
+	void ExitStatement() {
+		Expect(22);
+		Token temp = t; boolean isBlock = isReturnInBlock(); 
+		Expect(23);
+		Expect(1);
+		if(t.val.equals("exit")) loc.registerReturn(temp, isBlock); 
+	}
+
+	void UnrollBlock() {
+		if (la.kind == 24) {
+			Get();
+			Expect(11);
+			QualIdent();
+			while (la.kind == 25) {
+				Get();
+				QualIdent();
+			}
+			Expect(1);
+			Expect(12);
+		} else if (la.kind == 26) {
+			Get();
+		} else SynErr(29);
+		Expect(13);
+		Block(true, false);
 	}
 
 	void QualIdent() {
 		Expect(1);
-		while (la.kind == 22) {
+		while (la.kind == 23) {
 			Get();
 			Expect(1);
 		}
@@ -282,11 +334,11 @@ public class Parser {
 	}
 
 	private static final boolean[][] set = {
-		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _x}
+		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_x, _T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_x}
 
 	};
 } // end Parser
@@ -326,15 +378,21 @@ class Errors {
 			case 12: s = "rpar expected"; break;
 			case 13: s = "lbrace expected"; break;
 			case 14: s = "rbrace expected"; break;
-			case 15: s = "\"class\" expected"; break;
-			case 16: s = "\",\" expected"; break;
-			case 17: s = "\"return\" expected"; break;
-			case 18: s = "\";\" expected"; break;
-			case 19: s = "\"catch\" expected"; break;
-			case 20: s = "\"|\" expected"; break;
-			case 21: s = "\"finally\" expected"; break;
-			case 22: s = "\".\" expected"; break;
-			case 23: s = "??? expected"; break;
+			case 15: s = "ldiamond expected"; break;
+			case 16: s = "rdiamond expected"; break;
+			case 17: s = "comma expected"; break;
+			case 18: s = "new_ expected"; break;
+			case 19: s = "\"class\" expected"; break;
+			case 20: s = "\"return\" expected"; break;
+			case 21: s = "\";\" expected"; break;
+			case 22: s = "\"System\" expected"; break;
+			case 23: s = "\".\" expected"; break;
+			case 24: s = "\"catch\" expected"; break;
+			case 25: s = "\"|\" expected"; break;
+			case 26: s = "\"finally\" expected"; break;
+			case 27: s = "\"package\" expected"; break;
+			case 28: s = "??? expected"; break;
+			case 29: s = "invalid UnrollBlock"; break;
 			default: s = "error " + n; break;
 		}
 		printMsg(line, col, s);

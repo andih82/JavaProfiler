@@ -1,0 +1,190 @@
+
+COMPILER Java
+
+
+	String curMethod = "";
+	String packageString = "";
+	boolean isVoidMethode = false;
+    Locator loc;
+
+	int pos(int i) {
+		if (i >= 0) return i; else return i + SIZE;
+	}
+
+	boolean isMethodBlock() {
+		if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar) || la.kind == _throws_) {
+			int level = 1;
+			int i = pos(top-3);
+			while (i != top &&  i <= bufLen ) {
+				if (buf[i].kind == _rpar) level++;
+				else if (buf[i].kind == _lpar) {
+					level--;
+					if (level == 0) {
+						if (buf[pos(i-1)].kind == _ident) {
+							curMethod = buf[pos(i-1)].val;
+                            isVoidMethode = buf[pos(i-2)].kind == _void_ || loc.getCurrClassName().equals(curMethod);
+							return true;
+						} else return false;
+					}
+				}
+				i = pos(i-1);
+			}
+		}
+		return false;
+	}
+
+	boolean isAnonymClassDeclariation() {
+        if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar)) {
+            int level = 1;
+    	    int i = pos(top-3);
+    	    while (i != top &&  i <= bufLen ) {
+            	if (buf[i].kind == _rpar) level++;
+            	else if (buf[i].kind == _lpar) {
+            		level--;
+            		if (level == 0) {
+            		   i = pos(i-1);
+                       while (i != top &&  i <= bufLen ) {
+                          if(buf[i].kind == _new_) {
+                             return true;
+                          } else if ( !(buf[i].kind == _ident || buf[i].kind == _ldiamond || buf[i].kind == _rdiamond || buf[i].kind == _comma ) ) {
+        	                 return false;
+        	              }
+                          i = pos(i-1);
+                      }
+                    }
+                }
+                i = pos(i-1);
+            }
+        }
+        return false;
+    }
+
+    Token findMethodBegin() {
+        if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
+			Token peekToken = scanner.Peek();
+            if(peekToken.kind == _lpar){
+                for (;;){
+                    if (";".equals(peekToken.val)){
+                        return peekToken;
+                    }
+                    peekToken = scanner.Peek();
+                }
+            }
+        }
+        return t;
+    }
+
+	boolean isReturnInBlock(){
+		if (buf[pos(top-3)].kind == _rpar 
+			|| buf[pos(top-3)].kind == _else_) {
+			return false;
+		}
+		return true;
+	}
+	
+
+/*-------------------------------------------------------------------------*/
+
+CHARACTERS
+  letter    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_".
+  digit     = "0123456789".
+  noquote   = ANY - '"'.
+  noapo     = ANY - '\''.
+
+TOKENS
+  ident     = letter {letter | digit}.
+  number    = digit {digit}.
+  string    = '"' {noquote | '\\' ['"']} '"'.
+  charCon   = '\'' ['\\'] ['\''] {noapo} '\''.
+  void_      = "void".
+  if_       = "if".
+  while_    = "while".
+  switch_   = "switch".
+  else_     = "else".
+  throws_   = "throws".
+  lpar      = '('.
+  rpar      = ')'.
+  lbrace    = '{'.
+  rbrace    = '}'.
+  ldiamond  = '<'.
+  rdiamond  = '>'.
+  comma     = ','.
+  new_ = "new".
+
+
+COMMENTS FROM "/*" TO "*/"
+COMMENTS FROM "//" TO "\n"
+
+IGNORE '\r' + '\n' + '\t'
+/*-------------------------------------------------------------------------*/
+
+PRODUCTIONS
+
+Java
+= [PackageDeclaration]                         (. loc.registerPackage(t, packageString); .)
+  { ClassDeclaration<false>
+    | ANY
+  }.
+
+ClassDeclaration<boolean innerClass>
+= "class" ident                                (. if(innerClass) loc.registerInnerClass(t, false); .)
+                                               (. else loc.registerClass(t); .)
+{ANY} "{"
+ClassBody<innerClass>
+.
+
+ClassBody<boolean innerClass>
+= { IF(isMethodBlock())	[ "throws" ident {"," ident} ] "{"
+								               (. loc.registerMethod(findMethodBegin(), curMethod); .)
+	  Block<false, isVoidMethode>
+	| IF(isAnonymClassDeclariation()) "{"      (. loc.registerInnerClass(t, true); .)
+      ClassBody<true>
+	| ClassDeclaration<true>
+	| "{" Block<false, false>  // non-method block
+	| ANY
+}
+"}"                                            (. if(innerClass) loc.leaveInnerClass(t); .)
+.
+
+Block< boolean unroll, boolean methodEnd>
+=                                              (. if(unroll) loc.registerUnroll(t); .)
+{   IF(isAnonymClassDeclariation()) "{"        (. loc.registerInnerClass(t, true); .)
+      ClassBody<true>
+    | "{" Block<false, false>
+	| ReturnStatement
+	| ExitStatement
+	| UnrollBlock
+	| ANY
+}
+"}"                                            (. if(methodEnd) loc.leaveVoidMethod(t); .)
+.
+
+ReturnStatement
+=  "return"                                    (. loc.registerReturn(t, isReturnInBlock());.)
+   {ANY} ";"
+.
+
+ExitStatement
+=  "System"                                    (. Token temp = t; boolean isBlock = isReturnInBlock(); .)
+   "." ident                                   (. if(t.val.equals("exit")) loc.registerReturn(temp, isBlock); .)
+.
+
+UnrollBlock =
+   (("catch" "("  QualIdent { "|" QualIdent } ident ")" )
+     | "finally"
+   ) "{"
+   Block<true, false>
+.
+
+PackageDeclaration =
+    "package" ident                            (. packageString = t.val; .)
+     { "." ident                               (. packageString += "." + t.val; .)
+     }
+     ";"
+.
+
+QualIdent =
+    ident { "." ident}
+.
+
+END Java.

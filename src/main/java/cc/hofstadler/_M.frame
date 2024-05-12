@@ -1,5 +1,6 @@
+%javaPackage%
 import java.math.BigDecimal;
-class _M {  // class for recording measurements
+public class _M {  // class for recording measurements
 
     static{
         init();
@@ -47,10 +48,8 @@ class _M {  // class for recording measurements
 
     public static void init() {
         //----- metadata initialized by instrumenter
-        classNames = new String[]{%classArray%};
-        methodNames = new String[][]{
-                %methodArrays%
-        };
+        classNames = new String[] {%classArray%};
+        methodNames = new String[][]{%methodArrays%};
         time = new long[classNames.length][];
         corr = new long[classNames.length][];
         for (int i = 0; i < classNames.length; i++) {

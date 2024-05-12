@@ -1,12 +1,52 @@
 package cc.hofstadler.examples;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.*;
 
 public class JavaTests {
 
+    public static Map<java.lang.String, Integer> map = new HashMap<String, Integer>(){
+      public Integer put(String key, Integer value){
+          System.out.println("Adding: " + key + " -> " + value);
+          return super.put(key, value);
+      }
+    };
+
     public static void main(String[] args) throws InterruptedException {
+
+        List list = new ArrayList() {
+
+            @Override
+            public boolean add(Object o) {
+                System.out.println("Adding: " + o);
+                Runnable action = new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("Hello world!");
+                    }
+                };
+                action.run();
+                Runnable action2 = new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("Hello world!");
+                    }
+                };
+                action2.run();
+                return super.add(o);
+            }
+        };
+
+        Runnable action = new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("Hello world!");
+            }
+        };
+
+        action.run();
+        list.add("Hello world!");
+
+        map.put("Hello world!",1);
         Thread.sleep(100L);
         foo();
         Thread.sleep(100L);
@@ -14,6 +54,7 @@ public class JavaTests {
     }
 
     public static void foo() throws InterruptedException {
+
         Thread.sleep(100L);
         bar();
         Thread.sleep(100L);

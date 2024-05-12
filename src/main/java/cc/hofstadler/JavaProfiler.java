@@ -1,75 +1,155 @@
 package cc.hofstadler;
 
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.ToolProvider;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class JavaProfiler {
 
+	protected static String mainFileName;
+	protected static String outDir;
+	protected static String srcDir;
+	protected static String passArgs;
+	private static String javaPackage = "";
 
-  	public static void main (String[] args) {
-		if(args.length == 0){
-        	System.out.println("Usage: Run <fileName>   - Filename of a Javafile");
-        	System.exit(-1);
-    	}
+	protected static Path mainFilePath;
+	protected static Path outDirPath;
+	protected static Path srcDirPath;
 
-		String fileName = "";
-		String profileDir = ".profile"+System.currentTimeMillis();
-		Path absolutePath;
+	private static List<Path> fileList;
+
+	private static Map<Path,List<InsertPoint>> metaData = new HashMap<>();
 
 
-		try {
-			fileName = FileUtils.getFileName(args[0]);
-		}catch (IllegalArgumentException iae){
-			System.err.println(iae.getMessage());
+	public static void main (String[] args) throws IOException {
+		parseArgs(args);
+		initArgs();
+
+		analyizeAndInstrument();
+
+
+		compileAndRun();
+		System.out.println("done.");
+	}
+
+	private static void analyizeAndInstrument() throws IOException {
+		Locator loc = new Locator();
+
+		if(srcDirPath != null) {
+			fileList = Files.walk(srcDirPath).filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".java"))
+					.map(p ->
+							FileUtils.writeStringToFile(
+									Instrumenter.instrument(FileUtils.readFileToString(p.toString()), analyzeFile(p, loc)),
+									p.getFileName().toString(),
+									outDirPath.toString() + File.separator + srcDirPath.relativize(p.getParent())
+							)).collect(Collectors.toList());
+		}else{
+			fileList = new ArrayList<>();
+			Path p = Paths.get(mainFileName);
+			fileList.add(FileUtils.writeStringToFile(
+					Instrumenter.instrument(FileUtils.readFileToString(p.toString()), analyzeFile(p, loc)),
+					p.getFileName().toString(),
+					outDirPath.toString()
+			));
 		}
+		fileList.add(
+				init_M(loc.getClasses(), loc.getMethodes(), javaPackage)
+		);
+	}
 
-		absolutePath = FileUtils.getAbsolutePath(args[0]);
-
-		System.out.println();
-		System.out.println("#############################################################");
-		System.out.println("# Analyze ...                                               #");
-		System.out.println("#############################################################");
-		System.out.println();
-		Scanner scanner = new Scanner(args[0]);
-		Parser parser = new Parser(scanner);
-		parser.loc = new Locator();
-		parser.Parse();
-
-		System.out.println();
-		System.out.println("#############################################################");
-		System.out.println("# Instrumment ...                                           #");
-		System.out.println("#############################################################");
-		System.out.println();
-		Instrumenter instrumenter = new Instrumenter(parser.loc.getClasses(), parser.loc.getMethodes(), parser.loc.getInsertPoints());
-
-		String instrumented = instrumenter.instrument(FileUtils.readFileToString(args[0]));
-		String inited_M = instrumenter.init_M(FileUtils.readFileToString("src\\main\\java\\cc\\hofstadler\\_M.frame") );
-
-		FileUtils.writeStringToFile(instrumented, absolutePath,fileName, profileDir);
-		FileUtils.writeStringToFile(inited_M,absolutePath,"_M.java", profileDir);
-
+	private static void compileAndRun() {
 		System.out.println();
 		System.out.println("#############################################################");
 		System.out.println("# Compile ...                                               #");
 		System.out.println("#############################################################");
 		System.out.println();
+		Executor exec = new Executor();
+		File mainFile = outDirPath.resolve(mainFileName).toFile();
 		try {
-			Executor.compile(absolutePath + File.separator + profileDir);
-			Executor.run(absolutePath + File.separator + profileDir , fileName.substring(0,fileName.lastIndexOf(".")));
-
+			exec.compile(fileList);
+			exec.run(outDirPath.toString(), mainFile.getName(), javaPackage, passArgs);
 		}catch (IOException ioe){
 			System.out.println(ioe.getMessage());
 		} catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        System.out.println(parser.errors.count + " errors detected");
 	}
+
+	private static Path init_M(List<String> classes, List<List<String>> methodes, String javaPackage) {
+		String inited_M =Instrumenter.init_M(FileUtils.readFileToString("src\\main\\java\\cc\\hofstadler\\_M.frame"), javaPackage, classes, methodes);
+		return FileUtils.writeStringToFile(inited_M,"_M.java", outDirPath.toString() +File.separator+"measurement");
+	}
+
+	private static List<InsertPoint> analyzeFile(Path file, Locator loc) {
+		loc.clear();
+		System.out.println("Analyzing " + file);
+		Scanner scanner = new Scanner(file.toString());
+		Parser parser = new Parser(scanner);
+		parser.loc = loc;
+		parser.Parse();
+		System.out.println(parser.errors.count + " errors detected");
+		metaData.put(file, loc.getInsertPoints());
+		return loc.getInsertPoints();
+	}
+
+	private static void initArgs() throws IOException {
+		mainFilePath = Paths.get(mainFileName).toAbsolutePath().getParent();
+
+		if(srcDir != null) {
+			srcDirPath = Paths.get(srcDir).toAbsolutePath();
+			if (!Files.isDirectory(srcDirPath)) {
+				throw new IllegalArgumentException("Not a directory: " + srcDir);
+			}
+		}
+
+		if(outDir != null){
+			outDirPath = Paths.get(outDir).toAbsolutePath().resolve(".profile");
+		}else {
+			outDirPath = srcDirPath != null ? srcDirPath.resolve(".profile") : mainFilePath.resolve(".profile");
+		}
+
+		if(outDirPath.toFile().exists()){
+			System.out.println("Directory " + outDirPath +" already exists. Delete all content? (y/[n])");
+			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+			String answer = reader.readLine();
+			if(answer.equals("y")){
+				Files.walk(outDirPath)
+						.sorted((a, b) -> b.toString().length() - a.toString().length())
+						.map(Path::toFile)
+						.forEach(File::delete);
+			}else{
+				System.out.println("Aborted.");
+				System.exit(0);
+			}
+		}else {
+			Files.createDirectories(outDirPath);
+		}
+
+	}
+
+	protected static void parseArgs(String[] args) {
+		if(args.length < 1){
+			System.out.println("Usage: JavaProfiler [-p <package>] [-o <output>] [-s <src>] <file>");
+    	} else {
+			int i = 0;
+			loop: while (i < args.length) {
+				switch (args[i]) {
+					case "-o" -> outDir = args[++i];
+					case "-s" -> srcDir = args[++i];
+					case "-p" ->  javaPackage = args[++i];
+					default -> {break loop;}
+				}
+				i++;
+			}
+			mainFileName = args[i++];
+			passArgs = Arrays.stream(args).skip(i).collect(Collectors.joining(" "));
+		}
+	}
+
 }
 
 class FileUtils{
@@ -85,7 +165,7 @@ class FileUtils{
 		return fileString;
 	}
 
-	public static Path getAbsolutePath(String path){
+	public static Path getAbsoluteDir(String path){
 		Path p = Paths.get(path);
 		if(!p.isAbsolute()){
 			p = p.toAbsolutePath();
@@ -97,15 +177,17 @@ class FileUtils{
 		}
 	}
 
-	public static void writeStringToFile(String srcString, Path absolutePath, String fileName, String profileDir){
-		Path target = Paths.get(absolutePath.toString(), profileDir, fileName);
+	public static Path writeStringToFile(String srcString, String fileName, String destDir){
+		System.out.println("Writing " + fileName + " to " + destDir);
+		Path target = Paths.get( destDir, fileName);
 		try {
 			if(Files.notExists(target.getParent())){
 				Files.createDirectories(target.getParent());
 			}
-			Files.writeString(target, srcString);
+			return Files.writeString(target, srcString);
 		}catch (IOException ioe){
 			System.err.println("Could not write file " + target);
+			throw new RuntimeException(ioe);
 		}
 	}
 
@@ -116,34 +198,18 @@ class FileUtils{
 			return p.getFileName().toString();
 		}else throw new IllegalArgumentException("Not a file: " + arg);
 	}
-}
 
-class Executor {
+	public static List<Path> getAllJavaFiles(Path path) throws IOException {
 
-	public static void compile(String path) throws IOException {
-		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-
-		Iterable<? extends JavaFileObject> compilationUnits1 =
-				fileManager.getJavaFileObjectsFromPaths(Files.list(Path.of(path)).toList());
-		compiler.getTask(null, fileManager, null, null, null, compilationUnits1).call();
-
-		fileManager.close();
+		List<Path> result;
+		try (Stream<Path> walk = Files.walk(path)) {
+			result = walk.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".java")).peek(p->toOutpath(p)).toList();
+		}
+		return result;
 	}
 
-	public static void run(String path, String mainFile) throws IOException, InterruptedException {
-		Process p = Runtime.getRuntime().exec("java -cp " + path + " " + mainFile);
-
-		p.getInputStream();
-		BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		String line;
-		while ((line = in.readLine()) != null) {
-			System.out.println("...  " + line);
-		}
-		BufferedReader ein = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-		while ((line = ein.readLine()) != null) {
-			System.err.println("...  " + line);
-		}
-		p.waitFor();
+	private static void toOutpath(Path p){
+		Path out = p.getParent().resolve(".profile"+System.currentTimeMillis()).resolve(p.getFileName());
+		System.out.println(out);
 	}
 }

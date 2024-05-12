@@ -9,63 +9,17 @@ import java.util.concurrent.TimeUnit;
  */
 public class Example {
 
-
-    private Comparator<Integer> comparator = new Comparator<Integer>() {
-        @Override
-        public int compare(Integer o1, Integer o2) {
-            return o1 - o2;
-        }
-    };
-
     public static void main(String[] args) throws Exception {
-
-        Runnable action = new Runnable() {
-            @Override
-            public void run() {
-                System.out.println("Hello world!");
-            }
-        };
 
         KnightsTour.knightsTourMain();
         //Mergesort
         MergeSortRecursive sort = new MergeSortRecursive(new ArrayList<>(Arrays.asList(12,556,393,68909,3,2,44,2,1,887,523,1422,4, 3, 1, 8, 5, 10, 0, 1,967,111,345,21,4,5,88, 4, 11, 8, 9)));
         System.out.println(sort.mergeSort());
 
-
-
-
-        map.put("Hello world!",1);
-        action.run();
-
-        List list = new ArrayList() {
-
-            @Override
-            public boolean add(Object o) {
-                System.out.println("Adding: " + o);
-                Runnable action = new Runnable() {
-                    @Override
-                    public void run() {
-                        System.out.println("Hello world! inner 1");
-                    }
-                };
-                action.run();
-                Runnable action2 = new Runnable() {
-                    @Override
-                    public void run() {
-                        System.out.println("Hello world!  inner 2");
-                    }
-                };
-                action2.run();
-                return super.add(o);
-            }
-        };
-
-        list.add("Hello world!");
-
         PowerSum ps = new PowerSum();
         ps.powSum(100, 3);
 
-        MonteCarloTreeSearch.monteCarloMain();
+        MonteCarloTreeSearch.main(args);
 
         Parentclass pc = new Parentclass();
         Childclass cc1 = new Childclass();
@@ -79,13 +33,6 @@ public class Example {
 
 
     }
-
-    public static Map<java.lang.String, Integer> map = new HashMap<String, Integer>(){
-        public Integer put(String key, Integer value){
-            System.out.println("Adding: " + key + " -> " + value);
-            return super.put(key, value);
-        }
-    };
 }
 
 /**
@@ -296,7 +243,6 @@ class MergeSortRecursive {
         }
         if (unsortedA.get(0) <= unsortedB.get(0)) {
             List<Integer> newAl = new ArrayList<Integer>() {
-
                 { add(unsortedA.get(0)); }
             };
             newAl.addAll(sort(unsortedA.subList(1, unsortedA.size()), unsortedB));
@@ -311,174 +257,6 @@ class MergeSortRecursive {
     }
 }
 
-/**
- * https://github.com/TheAlgorithms/Java/blob/master/src/main/java/com/thealgorithms/searches/MonteCarloTreeSearch.java
- */
-class MonteCarloTreeSearch {
-
-    public class Node {
-
-        Node parent;
-        ArrayList<Node> childNodes;
-        boolean isPlayersTurn; // True if it is the player's turn.
-        boolean playerWon; // True if the player won; false if the opponent won.
-        int score;
-        int visitCount;
-
-        public Node() {
-        }
-
-        public Node(Node parent, boolean isPlayersTurn) {
-            this.parent = parent;
-            childNodes = new ArrayList<>();
-            this.isPlayersTurn = isPlayersTurn;
-            playerWon = false;
-            score = 0;
-            visitCount = 0;
-        }
-    }
-
-    static final int WIN_SCORE = 10;
-    static final int TIME_LIMIT = 500; // Time the algorithm will be running for (in milliseconds).
-
-    public static void monteCarloMain() {
-        MonteCarloTreeSearch mcts = new MonteCarloTreeSearch();
-
-        mcts.monteCarloTreeSearch(mcts.new Node(null, true));
-    }
-
-    /**
-     * Explores a game tree using Monte Carlo Tree Search (MCTS) and returns the
-     * most promising node.
-     *
-     * @param rootNode Root node of the game tree.
-     * @return The most promising child of the root node.
-     */
-    public Node monteCarloTreeSearch(Node rootNode) {
-        Node winnerNode;
-        double timeLimit;
-
-        // Expand the root node.
-        addChildNodes(rootNode, 10);
-
-        timeLimit = System.currentTimeMillis() + TIME_LIMIT;
-
-        // Explore the tree until the time limit is reached.
-        while (System.currentTimeMillis() < timeLimit) {
-            Node promisingNode;
-
-            // Get a promising node using UCT.
-            promisingNode = getPromisingNode(rootNode);
-
-            // Expand the promising node.
-            if (promisingNode.childNodes.size() == 0) {
-                addChildNodes(promisingNode, 10);
-            }
-
-            simulateRandomPlay(promisingNode);
-        }
-
-        winnerNode = getWinnerNode(rootNode);
-        printScores(rootNode);
-        System.out.format("\nThe optimal node is: %02d\n", rootNode.childNodes.indexOf(winnerNode) + 1);
-
-        return winnerNode;
-    }
-
-    public void addChildNodes(Node node, int childCount) {
-        for (int i = 0; i < childCount; i++) {
-            node.childNodes.add(new Node(node, !node.isPlayersTurn));
-        }
-    }
-
-    /**
-     * Uses UCT to find a promising child node to be explored.
-     *
-     * UCT: Upper Confidence bounds applied to Trees.
-     *
-     * @param rootNode Root node of the tree.
-     * @return The most promising node according to UCT.
-     */
-    public Node getPromisingNode(Node rootNode) {
-        Node promisingNode = rootNode;
-
-        // Iterate until a node that hasn't been expanded is found.
-        while (promisingNode.childNodes.size() != 0) {
-            double uctIndex = Double.MIN_VALUE;
-            int nodeIndex = 0;
-
-            // Iterate through child nodes and pick the most promising one
-            // using UCT (Upper Confidence bounds applied to Trees).
-            for (int i = 0; i < promisingNode.childNodes.size(); i++) {
-                Node childNode = promisingNode.childNodes.get(i);
-                double uctTemp;
-
-                // If child node has never been visited
-                // it will have the highest uct value.
-                if (childNode.visitCount == 0) {
-                    nodeIndex = i;
-                    break;
-                }
-
-                uctTemp = ((double) childNode.score / childNode.visitCount) + 1.41 * Math.sqrt(Math.log(promisingNode.visitCount) / (double) childNode.visitCount);
-
-                if (uctTemp > uctIndex) {
-                    uctIndex = uctTemp;
-                    nodeIndex = i;
-                }
-            }
-
-            promisingNode = promisingNode.childNodes.get(nodeIndex);
-        }
-
-        return promisingNode;
-    }
-
-    /**
-     * Simulates a random play from a nodes current state and back propagates
-     * the result.
-     *
-     * @param promisingNode Node that will be simulated.
-     */
-    public void simulateRandomPlay(Node promisingNode) {
-        Random rand = new Random();
-        Node tempNode = promisingNode;
-        boolean isPlayerWinner;
-
-        // The following line randomly determines whether the simulated play is a win or loss.
-        // To use the MCTS algorithm correctly this should be a simulation of the nodes' current
-        // state of the game until it finishes (if possible) and use an evaluation function to
-        // determine how good or bad the play was.
-        // e.g. Play tic tac toe choosing random squares until the game ends.
-        promisingNode.playerWon = (rand.nextInt(6) == 0);
-
-        isPlayerWinner = promisingNode.playerWon;
-
-        // Back propagation of the random play.
-        while (tempNode != null) {
-            tempNode.visitCount++;
-
-            // Add wining scores to bouth player and opponent depending on the turn.
-            if ((tempNode.isPlayersTurn && isPlayerWinner) || (!tempNode.isPlayersTurn && !isPlayerWinner)) {
-                tempNode.score += WIN_SCORE;
-            }
-
-            tempNode = tempNode.parent;
-        }
-    }
-
-    public Node getWinnerNode(Node rootNode) {
-        return Collections.max(rootNode.childNodes, Comparator.comparing(c -> c.score));
-    }
-
-    public void printScores(Node rootNode) {
-        System.out.println("N.\tScore\t\tVisits");
-
-        for (int i = 0; i < rootNode.childNodes.size(); i++) {
-            System.out.printf("%02d\t%d\t\t%d%n", i + 1, rootNode.childNodes.get(i).score, rootNode.childNodes.get(i).visitCount);
-        }
-    }
-}
 
 
 class Parentclass{
