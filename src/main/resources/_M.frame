@@ -1,0 +1,218 @@
+%javaPackage%
+import java.math.BigDecimal;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.File;
+
+public class _M {  // class for recording measurements
+
+    static{
+        init();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> generateReport()));
+    }
+
+    //----- metadata initialized in init metho
+    static String[] classNames;    // class names
+    static String[][] methodNames;    // method names
+    static long overalltime;
+    static long[][] time;    // run times of methods
+    static long[][] corr;    // correction of run times for each method
+
+    //----- stacks and current values
+    static int[] classes;    // stack of class numbers
+    static int[] methods;    // stack of method numbers
+    static long[] times;    // stack of times
+    static int top = 0;    // stack pointer
+
+    static int curClass = -1;    // current class number
+    static int curMethod = -1;    // current method number
+
+    static int lastEndClass = -1;    // last class number
+    static int lastEndMethod = -1;    // last method number
+
+
+    public static void beg(int c, int m) {
+        classes[top] = curClass;
+        methods[top] = curMethod;
+        times[top] = System.nanoTime();  // record start time
+        top++;
+        curClass = c;
+        curMethod = m;
+    }
+
+    public static void end() {
+        top--;
+        lastEndClass = curClass;
+        lastEndMethod = curMethod;
+        long currTime = System.nanoTime() - times[top];  // compute run time of current method
+        time[curClass][curMethod] += currTime;
+        curClass = classes[top];
+        curMethod = methods[top];
+        if(top>0) time[curClass][curMethod] -= currTime;
+    }
+
+    public static void unrollTo(int c, int m) {
+        if (lastEndClass == c && lastEndMethod == m) return;
+        while (curClass != c || curMethod != m) end();
+    }
+
+    public static void init() {
+        //----- metadata initialized by instrumenter
+        classNames = new String[] {%classArray%};
+        methodNames = new String[][]{%methodArrays%};
+        time = new long[classNames.length][];
+        corr = new long[classNames.length][];
+        for (int i = 0; i < classNames.length; i++) {
+            time[i] = new long[methodNames[i].length];
+            corr[i] = new long[methodNames[i].length];
+        }
+
+        //----- creation of stacks
+        classes = new int[1000];
+        methods = new int[1000];
+        times = new long[1000];
+
+        //-------- starttime
+        overalltime = System.currentTimeMillis();
+    }
+
+        public static void generateReport() {
+
+            StringBuilder htmlTable = new StringBuilder(htmlPreTemplate);
+            long sumCorrected = 0;
+            for(int i = 0; i < classNames.length; i++) {
+                for(int j = 0; j < methodNames[i].length; j++) {
+                    sumCorrected += (time[i][j] - corr[i][j]);
+                    htmlTable.append("<tr>");
+                    htmlTable.append("<td data-fullname=\"").append(classNames[i]).append(".").append(methodNames[i][j]).append("\">").append(classNames[i]).append(".").append(methodNames[i][j]).append("</td>");
+                    htmlTable.append("<td class=\"numeric\"  data-nanoseconds=\"").append(time[i][j] - corr[i][j]).append("\"></td>");
+                    htmlTable.append("</tr>");
+                }
+            }
+            htmlTable.append(htmlPostTemplate);
+            try {
+                Files.writeString(Path.of(new File("%outPathDir%"+"/report.html").getPath()), htmlTable.toString().replace("%overall%", String.valueOf(sumCorrected/1000000)));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+        }
+
+        static final String htmlPreTemplate = """
+                <!DOCTYPE html>
+                <html lang="de">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Report</title>
+                    <style>
+                        table {
+                            border-collapse: collapse;
+                        }
+                        th, td {
+                            border: 1px solid black;
+                            padding: 8px;
+                            text-align: left;
+                            cursor: pointer;
+                        }
+                        th {
+                            background-color: #f2f2f2;
+                        }
+                        td.numeric {
+                            text-align: right;
+                        }
+                    </style>
+                </head>
+                <body>
+                <h1>Java profiler report</h1>
+                <h3>Overall time: %overall% ms</h3>
+                <button id="toggleButton" >Toggle package name</button>
+                <hr/>
+                <table id="sortableTable">
+                    <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">Java method</th>
+                        <th onclick="sortTable(1)">Time in millisecond</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                """;
+
+        static final String htmlPostTemplate = """
+                 </tbody>
+                </table>
+
+                <script>
+
+                    let isShortened = false;
+                    function shortenPackageName(fullMethodName) {
+                        const parts = fullMethodName.split('.');
+                        if (parts.length < 3) return fullMethodName; // Return original if format is unexpected
+                        let shortenedParts = parts.slice(0, -2).map(part => part.charAt(0)); // Shorten package names
+                        shortenedParts = shortenedParts.concat(parts.slice(-2)); // Append class and method name
+                        return shortenedParts.join('.');
+                    }
+
+                    function initializeShortenedMethodNames() {
+                        const cells = document.querySelectorAll('td[data-fullname]');
+                        cells.forEach(cell => {
+                            const fullName = cell.getAttribute('data-fullname');
+                            const shortenedName = shortenPackageName(fullName);
+                            cell.textContent = shortenedName;
+                        });
+                        isShortened = true;
+                    }
+
+                    function convertNanosecondsToMilliseconds(nanoseconds) {
+                        return (nanoseconds / 1000000).toFixed(3);
+                    }
+
+                    function initializeNumericCells() {
+                        const cells = document.querySelectorAll('td.numeric');
+                        cells.forEach(cell => {
+                            const nanoseconds = cell.getAttribute('data-nanoseconds');
+                            const microseconds = convertNanosecondsToMilliseconds(nanoseconds);
+                            cell.textContent = microseconds.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
+                        });
+                    }
+
+                    function togglePackageNames() {
+                        const cells = document.querySelectorAll('td[data-fullname]');
+                        cells.forEach(cell => {
+                            cell.textContent = isShortened ? cell.getAttribute('data-fullname') : shortenPackageName(cell.getAttribute('data-fullname'));
+                        });
+                        isShortened = !isShortened;
+                    }
+
+                    let sortOrder = true;
+                    function sortTable(n){
+                        const table = document.getElementById("sortableTable");
+                        let rows = table.rows;
+                        sortOrder = !sortOrder;
+                        Array.from(rows).slice(1).sort((a, b) => {
+                            if(sortOrder){
+                                [a,b] = [b,a];
+                            }
+                            let x = a.getElementsByTagName("TD")[n];
+                            let y = b.getElementsByTagName("TD")[n];
+
+                            if (n > 0) {
+                                return parseFloat(x.getAttribute('data-nanoseconds')) - parseFloat(y.getAttribute('data-nanoseconds'));
+                            } else {
+                                return x.innerHTML.toLowerCase().localeCompare(y.innerHTML.toLowerCase());
+                            }
+                        }).forEach(row => table.appendChild(row));
+                    }
+
+
+                    document.addEventListener('DOMContentLoaded', () => {
+                        initializeShortenedMethodNames();
+                        initializeNumericCells();
+                        document.getElementById('toggleButton').addEventListener('click', togglePackageNames);
+                    });
+                </script>
+                </body>
+                </html>
+                """;
+}

@@ -4,11 +4,11 @@ package cc.hofstadler;
 public class Parser {
 	public static final int _EOF = 0;
 	public static final int _ident = 1;
-	public static final int _number = 2;
+	public static final int _char = 2;
 	public static final int _string = 3;
-	public static final int _charCon = 4;
-	public static final int _void_ = 5;
-	public static final int _if_ = 6;
+	public static final int _void_ = 4;
+	public static final int _if_ = 5;
+	public static final int _for_ = 6;
 	public static final int _while_ = 7;
 	public static final int _switch_ = 8;
 	public static final int _else_ = 9;
@@ -20,8 +20,9 @@ public class Parser {
 	public static final int _ldiamond = 15;
 	public static final int _rdiamond = 16;
 	public static final int _comma = 17;
-	public static final int _new_ = 18;
-	public static final int maxT = 28;
+	public static final int _arrow = 18;
+	public static final int _new_ = 19;
+	public static final int maxT = 32;
 
 	static final boolean _T = true;
 	static final boolean _x = false;
@@ -70,6 +71,13 @@ public class Parser {
 		return false;
 	}
 
+	boolean isLambdaBlock() {
+        if ((la.kind == _lbrace && buf[pos(top-2)].kind == _arrow)) {
+            return true;
+        }
+        return false;
+    }
+
 	boolean isAnonymClassDeclariation() {
         if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar)) {
             int level = 1;
@@ -97,6 +105,7 @@ public class Parser {
     }
 
     Token findMethodBegin() {
+        scanner.ResetPeek();
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
 			Token peekToken = scanner.Peek();
             if(peekToken.kind == _lpar){
@@ -118,6 +127,29 @@ public class Parser {
 		}
 		return true;
 	}
+
+	boolean isDirectAfterThorw(){
+        if (";".equals(buf[pos(top-3)].val)) {
+        			int level = 0;
+        			int i = pos(top-4);
+        			while (i != top &&  i <= bufLen ) {
+        				if (buf[i].kind == _rpar) level++;
+        				else if (buf[i].kind == _lpar) {
+        					level--;
+        					if (level == 0) {
+        						if (buf[pos(i-2)].kind == _new_ && buf[pos(i-3)].kind == _ident && "throw".equals(buf[pos(i-3)].val))  {
+        						   if (buf[pos(i-4)].kind == _rpar || buf[pos(i-4)].kind == _else_) {
+                                       return false;
+                                   }
+                                   return true;
+        						} else return false;
+        					}
+        				}
+        				i = pos(i-1);
+        			}
+        		}
+        		return false;
+    }
 	
 
 /*-------------------------------------------------------------------------*/
@@ -186,12 +218,12 @@ public class Parser {
 	}
 	
 	void Java() {
-		if (la.kind == 27) {
+		if (la.kind == 31) {
 			PackageDeclaration();
 		}
 		loc.registerPackage(t, packageString); 
 		while (StartOf(1)) {
-			if (la.kind == 19) {
+			if (StartOf(2)) {
 				ClassDeclaration(false);
 			} else {
 				Get();
@@ -200,31 +232,49 @@ public class Parser {
 	}
 
 	void PackageDeclaration() {
-		Expect(27);
+		Expect(31);
 		Expect(1);
 		packageString = t.val; 
-		while (la.kind == 23) {
+		while (la.kind == 27) {
 			Get();
 			Expect(1);
 			packageString += "." + t.val; 
 		}
-		Expect(21);
+		Expect(24);
 	}
 
 	void ClassDeclaration(boolean innerClass) {
-		Expect(19);
-		Expect(1);
-		if(innerClass) loc.registerInnerClass(t, false); 
-		else loc.registerClass(t); 
-		while (StartOf(2)) {
+		if (la.kind == 20) {
 			Get();
-		}
-		Expect(13);
-		ClassBody(innerClass);
+		} else if (la.kind == 21) {
+			Get();
+		} else if (la.kind == 22) {
+			Get();
+		} else if (la.kind == 23) {
+			Get();
+		} else SynErr(33);
+		if (la.kind == 12 || la.kind == 17 || la.kind == 24) {
+			if (la.kind == 24) {
+				Get();
+			} else if (la.kind == 17) {
+				Get();
+			} else {
+				Get();
+			}
+		} else if (la.kind == 1) {
+			Get();
+			if(innerClass) loc.registerInnerClass(t, false); 
+			else loc.registerClass(t); 
+			while (StartOf(3)) {
+				Get();
+			}
+			Expect(13);
+			ClassBody(innerClass);
+		} else SynErr(34);
 	}
 
 	void ClassBody(boolean innerClass) {
-		while (StartOf(3)) {
+		while (StartOf(4)) {
 			if (isMethodBlock()) {
 				if (la.kind == 10) {
 					Get();
@@ -234,18 +284,25 @@ public class Parser {
 						Expect(1);
 					}
 				}
-				Expect(13);
-				loc.registerMethod(findMethodBegin(), curMethod); 
-				Block(false, isVoidMethode);
+				if (la.kind == 24) {
+					Get();
+				} else if (la.kind == 13) {
+					Get();
+					loc.registerMethod(findMethodBegin(), curMethod); 
+					Block(false, isVoidMethode, false);
+				} else SynErr(35);
 			} else if (isAnonymClassDeclariation()) {
 				Expect(13);
 				loc.registerInnerClass(t, true); 
 				ClassBody(true);
-			} else if (la.kind == 19) {
+			} else if (isLambdaBlock()) {
+				Expect(13);
+				Block(false, false, true);
+			} else if (StartOf(2)) {
 				ClassDeclaration(true);
 			} else if (la.kind == 13) {
 				Get();
-				Block(false, false);
+				Block(false, false, false);
 			} else {
 				Get();
 			}
@@ -254,68 +311,71 @@ public class Parser {
 		if(innerClass) loc.leaveInnerClass(t); 
 	}
 
-	void Block(boolean unroll, boolean methodEnd) {
+	void Block(boolean unroll, boolean methodEnd, boolean ignoreReturn) {
 		if(unroll) loc.registerUnroll(t); 
-		while (StartOf(3)) {
+		while (StartOf(4)) {
 			if (isAnonymClassDeclariation()) {
 				Expect(13);
 				loc.registerInnerClass(t, true); 
 				ClassBody(true);
+			} else if (isLambdaBlock()) {
+				Expect(13);
+				Block(false, false, true);
 			} else if (la.kind == 13) {
 				Get();
-				Block(false, false);
-			} else if (la.kind == 20) {
-				ReturnStatement();
-			} else if (la.kind == 22) {
+				Block(false, false, false);
+			} else if (la.kind == 25) {
+				ReturnStatement(ignoreReturn);
+			} else if (la.kind == 26) {
 				ExitStatement();
-			} else if (la.kind == 24 || la.kind == 26) {
+			} else if (la.kind == 28 || la.kind == 30) {
 				UnrollBlock();
 			} else {
 				Get();
 			}
 		}
 		Expect(14);
-		if(methodEnd) loc.leaveVoidMethod(t); 
+		if(methodEnd && !isDirectAfterThorw()) loc.leaveVoidMethod(t); 
 	}
 
-	void ReturnStatement() {
-		Expect(20);
-		loc.registerReturn(t, isReturnInBlock());
-		while (StartOf(4)) {
+	void ReturnStatement(boolean ignore) {
+		Expect(25);
+		if(!ignore) loc.registerReturn(t, isReturnInBlock());
+		while (StartOf(5)) {
 			Get();
 		}
-		Expect(21);
+		Expect(24);
 	}
 
 	void ExitStatement() {
-		Expect(22);
+		Expect(26);
 		Token temp = t; boolean isBlock = isReturnInBlock(); 
-		Expect(23);
+		Expect(27);
 		Expect(1);
 		if(t.val.equals("exit")) loc.registerReturn(temp, isBlock); 
 	}
 
 	void UnrollBlock() {
-		if (la.kind == 24) {
+		if (la.kind == 28) {
 			Get();
 			Expect(11);
 			QualIdent();
-			while (la.kind == 25) {
+			while (la.kind == 29) {
 				Get();
 				QualIdent();
 			}
 			Expect(1);
 			Expect(12);
-		} else if (la.kind == 26) {
+		} else if (la.kind == 30) {
 			Get();
-		} else SynErr(29);
+		} else SynErr(36);
 		Expect(13);
-		Block(true, false);
+		Block(true, false, false);
 	}
 
 	void QualIdent() {
 		Expect(1);
-		while (la.kind == 23) {
+		while (la.kind == 27) {
 			Get();
 			Expect(1);
 		}
@@ -334,11 +394,12 @@ public class Parser {
 	}
 
 	private static final boolean[][] set = {
-		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_x, _T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x},
-		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_x}
+		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_x, _T,_x},
+		{_x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _T,_T,_T,_T, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_x,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_x},
+		{_x,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _T,_T,_T,_T, _x,_T,_T,_T, _T,_T,_T,_T, _T,_x}
 
 	};
 } // end Parser
@@ -365,11 +426,11 @@ class Errors {
 		switch (n) {
 			case 0: s = "EOF expected"; break;
 			case 1: s = "ident expected"; break;
-			case 2: s = "number expected"; break;
+			case 2: s = "char expected"; break;
 			case 3: s = "string expected"; break;
-			case 4: s = "charCon expected"; break;
-			case 5: s = "void_ expected"; break;
-			case 6: s = "if_ expected"; break;
+			case 4: s = "void_ expected"; break;
+			case 5: s = "if_ expected"; break;
+			case 6: s = "for_ expected"; break;
 			case 7: s = "while_ expected"; break;
 			case 8: s = "switch_ expected"; break;
 			case 9: s = "else_ expected"; break;
@@ -381,18 +442,25 @@ class Errors {
 			case 15: s = "ldiamond expected"; break;
 			case 16: s = "rdiamond expected"; break;
 			case 17: s = "comma expected"; break;
-			case 18: s = "new_ expected"; break;
-			case 19: s = "\"class\" expected"; break;
-			case 20: s = "\"return\" expected"; break;
-			case 21: s = "\";\" expected"; break;
-			case 22: s = "\"System\" expected"; break;
-			case 23: s = "\".\" expected"; break;
-			case 24: s = "\"catch\" expected"; break;
-			case 25: s = "\"|\" expected"; break;
-			case 26: s = "\"finally\" expected"; break;
-			case 27: s = "\"package\" expected"; break;
-			case 28: s = "??? expected"; break;
-			case 29: s = "invalid UnrollBlock"; break;
+			case 18: s = "arrow expected"; break;
+			case 19: s = "new_ expected"; break;
+			case 20: s = "\"class\" expected"; break;
+			case 21: s = "\"enum\" expected"; break;
+			case 22: s = "\"interface\" expected"; break;
+			case 23: s = "\"record\" expected"; break;
+			case 24: s = "\";\" expected"; break;
+			case 25: s = "\"return\" expected"; break;
+			case 26: s = "\"System\" expected"; break;
+			case 27: s = "\".\" expected"; break;
+			case 28: s = "\"catch\" expected"; break;
+			case 29: s = "\"|\" expected"; break;
+			case 30: s = "\"finally\" expected"; break;
+			case 31: s = "\"package\" expected"; break;
+			case 32: s = "??? expected"; break;
+			case 33: s = "invalid ClassDeclaration"; break;
+			case 34: s = "invalid ClassDeclaration"; break;
+			case 35: s = "invalid ClassBody"; break;
+			case 36: s = "invalid UnrollBlock"; break;
 			default: s = "error " + n; break;
 		}
 		printMsg(line, col, s);

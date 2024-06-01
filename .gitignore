@@ -44,5 +44,6 @@ bin/
 
 example/**/.profile*
 example/CocoOUT/
+sample/
 /src/main/java/cc/hofstadler/Parser.java.old
 /src/main/java/cc/hofstadler/Scanner.java.old

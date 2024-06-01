@@ -1,13 +1,19 @@
 package cc.hofstadler;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class Instrumenter {
 
-
+    /**
+     * Instruments the source code with the given insert points
+     * @param srcString
+     * @param insertPoints
+     * @return
+     */
     public static String instrument(String srcString, List<InsertPoint> insertPoints){
-        System.out.println("Instrumenting... ");
+        JavaProfiler.println("Instrumenting... ");
         StringBuilder sb = new StringBuilder(srcString);
         insertPoints.stream()
                 .sorted((a,b) -> Integer.compare(b.charPos,a.charPos))
@@ -30,8 +36,16 @@ public class Instrumenter {
         return sb.toString();
     }
 
-    public static String init_M(String frameString, String javaPackage, List<String> classes, List<List<String>> methodes){
-        javaPackage = "package measurement;";
+    /**
+     * Initializes the measurement class with the given classes and methodes
+     * @param frameString
+     * @param classes
+     * @param methodes
+     * @param outDirPath
+     * @return
+     */
+    public static String init_M(String frameString, List<String> classes, List<List<String>> methodes , Path outDirPath){
+        String javaPackage = "package measurement;";
         String classesInit = classes.stream()
                 .collect(Collectors.joining("\", \"","\"", "\""));
         StringBuilder methodSb = new StringBuilder();
@@ -43,7 +57,8 @@ public class Instrumenter {
         if (methodSb.toString().endsWith(",")) methodSb.deleteCharAt(methodSb.lastIndexOf(","));
         return  frameString.replace("%classArray%", classesInit)
                 .replace("%methodArrays%", methodSb.toString())
-                .replace("%javaPackage%", javaPackage);
+                .replace("%javaPackage%", javaPackage)
+                .replace("%outPathDir%", outDirPath.toString().replace("\\","/") );
     }
 
 }

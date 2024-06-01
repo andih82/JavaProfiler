@@ -48,6 +48,7 @@ import java.io.File;
 public class Coco {
 
   public static void main (String[] arg) {
+    long start = System.nanoTime();
     System.out.println("Coco/R (Nov 23, 2023)");
     String srcName = null, nsName = null, frameDir = null, ddtString = null, outDir = null;
     int retVal = 1;
@@ -106,6 +107,7 @@ public class Coco {
         "or in a directory specified in the -frames option.\n"
       );
     }
+    System.out.println("Coco.main  " + (System.nanoTime() - start) / 1000000 + " ms");
     System.exit(retVal);
   }
 

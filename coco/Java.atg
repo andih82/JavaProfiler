@@ -33,6 +33,13 @@ COMPILER Java
 		return false;
 	}
 
+	boolean isLambdaBlock() {
+        if ((la.kind == _lbrace && buf[pos(top-2)].kind == _arrow)) {
+            return true;
+        }
+        return false;
+    }
+
 	boolean isAnonymClassDeclariation() {
         if ((la.kind == _lbrace && buf[pos(top-2)].kind == _rpar)) {
             int level = 1;
@@ -60,6 +67,7 @@ COMPILER Java
     }
 
     Token findMethodBegin() {
+        scanner.ResetPeek();
         if(la.kind == _ident && ("super".equals(la.val) || "this".equals(la.val) )){
 			Token peekToken = scanner.Peek();
             if(peekToken.kind == _lpar){
@@ -81,6 +89,29 @@ COMPILER Java
 		}
 		return true;
 	}
+
+	boolean isDirectAfterThorw(){
+        if (";".equals(buf[pos(top-3)].val)) {
+        			int level = 0;
+        			int i = pos(top-4);
+        			while (i != top &&  i <= bufLen ) {
+        				if (buf[i].kind == _rpar) level++;
+        				else if (buf[i].kind == _lpar) {
+        					level--;
+        					if (level == 0) {
+        						if (buf[pos(i-2)].kind == _new_ && buf[pos(i-3)].kind == _ident && "throw".equals(buf[pos(i-3)].val))  {
+        						   if (buf[pos(i-4)].kind == _rpar || buf[pos(i-4)].kind == _else_) {
+                                       return false;
+                                   }
+                                   return true;
+        						} else return false;
+        					}
+        				}
+        				i = pos(i-1);
+        			}
+        		}
+        		return false;
+    }
 	
 
 /*-------------------------------------------------------------------------*/
@@ -88,16 +119,54 @@ COMPILER Java
 CHARACTERS
   letter    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_".
   digit     = "0123456789".
-  noquote   = ANY - '"'.
-  noapo     = ANY - '\''.
-
-TOKENS
-  ident     = letter {letter | digit}.
-  number    = digit {digit}.
-  string    = '"' {noquote | '\\' ['"']} '"'.
-  charCon   = '\'' ['\\'] ['\''] {noapo} '\''.
+  cr = '\r'.
+  lf = '\n'.
+  tab = '\t'.
+  bslash = '\\'.
+  quote = '"'.
+  apostrophe = '\''.
+  noApostrophe = ANY - apostrophe - bslash - cr - lf.
+  noQuote = ANY - quote.
+  noQuoteNoBSlash = ANY - quote - bslash.
+  escapableChar = 'b'+ 's' + 't' + 'n' + 'f' + 'r' + quote + apostrophe + bslash.
+  hexDigit = digit + 'a'..'f' + 'A'..'F'.
+  zeroToThree = "0123".
+  octalDigit = "01234567".
+  TOKENS
+  ident = letter {letter | digit}.
+  // char & string from https://github.com/matwoess/java-profiler/blob/main/profiler-tool/src/main/java/tool/instrument/JavaFile.atg
+  char =
+      apostrophe (
+          noApostrophe
+          | bslash (
+              escapableChar
+              | 'u' {'u'} hexDigit hexDigit hexDigit hexDigit
+              | (octalDigit [octalDigit] | zeroToThree octalDigit octalDigit)
+          )
+      ) apostrophe.
+  string =
+      quote (
+          quote quote lf  // multi-line "text block" string
+              {   noQuote
+                  | quote noQuote
+                  | quote quote noQuote
+                  | [quote] [quote] bslash quote
+              }
+              quote quote quote
+          | {             // common string literal
+              (   noQuoteNoBSlash
+                  | bslash (
+                      escapableChar
+                      | 'u' {'u'} hexDigit hexDigit hexDigit hexDigit
+                      | (octalDigit [octalDigit] | zeroToThree octalDigit octalDigit)
+                  )
+              )
+          }
+          quote
+      ).
   void_      = "void".
   if_       = "if".
+  for_      = "for".
   while_    = "while".
   switch_   = "switch".
   else_     = "else".
@@ -109,13 +178,14 @@ TOKENS
   ldiamond  = '<'.
   rdiamond  = '>'.
   comma     = ','.
-  new_ = "new".
+  arrow     = "->".
+  new_      = "new".
 
 
 COMMENTS FROM "/*" TO "*/"
-COMMENTS FROM "//" TO "\n"
+COMMENTS FROM "//" TO lf
 
-IGNORE '\r' + '\n' + '\t'
+IGNORE cr + lf + tab
 /*-------------------------------------------------------------------------*/
 
 PRODUCTIONS
@@ -127,40 +197,51 @@ Java
   }.
 
 ClassDeclaration<boolean innerClass>
-= "class" ident                                (. if(innerClass) loc.registerInnerClass(t, false); .)
-                                               (. else loc.registerClass(t); .)
-{ANY} "{"
-ClassBody<innerClass>
+=
+       ("class"  | "enum" | "interface" | "record")
+       ( (";"| "," | ")")                           // skip Classname.class calls
+         | (ident                                   (. if(innerClass) loc.registerInnerClass(t, false); .)
+                                                    (. else loc.registerClass(t); .)
+           {ANY} "{"
+           ClassBody<innerClass>)
+       )
+
 .
 
 ClassBody<boolean innerClass>
-= { IF(isMethodBlock())	[ "throws" ident {"," ident} ] "{"
-								               (. loc.registerMethod(findMethodBegin(), curMethod); .)
-	  Block<false, isVoidMethode>
+= { IF(isMethodBlock())	[ "throws" ident {"," ident} ]
+       (";" |                                    //skip abstract method declaration
+           ( "{"                               (. loc.registerMethod(findMethodBegin(), curMethod); .)
+	       Block<false, isVoidMethode, false>
+	   ))
 	| IF(isAnonymClassDeclariation()) "{"      (. loc.registerInnerClass(t, true); .)
       ClassBody<true>
+    | IF(isLambdaBlock()) "{"
+      Block<false, false, true>
 	| ClassDeclaration<true>
-	| "{" Block<false, false>  // non-method block
+	| "{" Block<false, false, false>  // non-method block
 	| ANY
 }
 "}"                                            (. if(innerClass) loc.leaveInnerClass(t); .)
 .
 
-Block< boolean unroll, boolean methodEnd>
+Block< boolean unroll, boolean methodEnd, boolean ignoreReturn>
 =                                              (. if(unroll) loc.registerUnroll(t); .)
 {   IF(isAnonymClassDeclariation()) "{"        (. loc.registerInnerClass(t, true); .)
       ClassBody<true>
-    | "{" Block<false, false>
-	| ReturnStatement
+    | IF(isLambdaBlock()) "{"
+       Block<false, false, true>
+    | "{" Block<false, false, false>
+	| ReturnStatement<ignoreReturn>
 	| ExitStatement
 	| UnrollBlock
 	| ANY
 }
-"}"                                            (. if(methodEnd) loc.leaveVoidMethod(t); .)
+"}"                                            (. if(methodEnd && !isDirectAfterThorw()) loc.leaveVoidMethod(t); .)
 .
 
-ReturnStatement
-=  "return"                                    (. loc.registerReturn(t, isReturnInBlock());.)
+ReturnStatement<boolean ignore>
+=  "return"                                    (. if(!ignore) loc.registerReturn(t, isReturnInBlock());.)
    {ANY} ";"
 .
 
@@ -173,7 +254,7 @@ UnrollBlock =
    (("catch" "("  QualIdent { "|" QualIdent } ident ")" )
      | "finally"
    ) "{"
-   Block<true, false>
+   Block<true, false, false>
 .
 
 PackageDeclaration =

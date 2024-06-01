@@ -1,12 +1,15 @@
 package cc.hofstadler;
 
+
+import java.awt.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class JavaProfiler {
 
@@ -14,29 +17,28 @@ public class JavaProfiler {
 	protected static String outDir;
 	protected static String srcDir;
 	protected static String passArgs;
-	private static String javaPackage = "";
+	protected static String javaPackage = "";
 
 	protected static Path mainFilePath;
 	protected static Path outDirPath;
 	protected static Path srcDirPath;
+	protected static boolean verbose = false;
 
 	private static List<Path> fileList;
-
-	private static Map<Path,List<InsertPoint>> metaData = new HashMap<>();
-
 
 	public static void main (String[] args) throws IOException {
 		parseArgs(args);
 		initArgs();
-
-		analyizeAndInstrument();
-
-
+		analyzeAndInstrument();
 		compileAndRun();
-		System.out.println("done.");
+		// open report in default browser
+		Desktop.getDesktop().open(outDirPath.resolve("report.html").toFile());
 	}
 
-	private static void analyizeAndInstrument() throws IOException {
+	private static void analyzeAndInstrument() throws IOException {
+		println("#############################################################");
+		println("# Analyze ...                                               #");
+		println("#############################################################");
 		Locator loc = new Locator();
 
 		if(srcDirPath != null) {
@@ -56,43 +58,53 @@ public class JavaProfiler {
 					outDirPath.toString()
 			));
 		}
-		fileList.add(
-				init_M(loc.getClasses(), loc.getMethodes(), javaPackage)
-		);
+		fileList.add(init_M(loc.getClasses(), loc.getMethodes()));
 	}
 
 	private static void compileAndRun() {
-		System.out.println();
-		System.out.println("#############################################################");
-		System.out.println("# Compile ...                                               #");
-		System.out.println("#############################################################");
-		System.out.println();
-		Executor exec = new Executor();
-		File mainFile = outDirPath.resolve(mainFileName).toFile();
+		println("#############################################################");
+		println("# Compile ...                                               #");
+		println("#############################################################");
+		Executor exec = new Executor(outDirPath.toString());
 		try {
 			exec.compile(fileList);
-			exec.run(outDirPath.toString(), mainFile.getName(), javaPackage, passArgs);
+			File mainFile = outDirPath.resolve(mainFileName).toFile();
+			exec.run(mainFile.getName(), javaPackage, passArgs);
 		}catch (IOException ioe){
-			System.out.println(ioe.getMessage());
+			System.err.println(ioe.getMessage());
 		} catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
 	}
 
-	private static Path init_M(List<String> classes, List<List<String>> methodes, String javaPackage) {
-		String inited_M =Instrumenter.init_M(FileUtils.readFileToString("src\\main\\java\\cc\\hofstadler\\_M.frame"), javaPackage, classes, methodes);
+	private static Path init_M(List<String> classes, List<List<String>> methodes) {
+		String resource = "_M.frame";
+		String frame;
+
+		try {
+			InputStream input = JavaProfiler.class.getResourceAsStream(resource);
+			if (input == null) {
+				// this is how we load file within editor (eg eclipse), fallback for development
+				input = JavaProfiler.class.getClassLoader().getResourceAsStream(resource);
+			}
+			frame = new String(input.readAllBytes(), StandardCharsets.ISO_8859_1);
+			input.close();
+		} catch (Exception e) {
+			throw new RuntimeException("Could not read resource " + resource);
+		}
+
+		String inited_M =Instrumenter.init_M(frame, classes, methodes, outDirPath);
 		return FileUtils.writeStringToFile(inited_M,"_M.java", outDirPath.toString() +File.separator+"measurement");
 	}
 
-	private static List<InsertPoint> analyzeFile(Path file, Locator loc) {
+	protected static List<InsertPoint> analyzeFile(Path file, Locator loc) {
 		loc.clear();
-		System.out.println("Analyzing " + file);
+		println("Analyzing " + file);
 		Scanner scanner = new Scanner(file.toString());
 		Parser parser = new Parser(scanner);
 		parser.loc = loc;
 		parser.Parse();
-		System.out.println(parser.errors.count + " errors detected");
-		metaData.put(file, loc.getInsertPoints());
+		println(parser.errors.count + " errors detected");
 		return loc.getInsertPoints();
 	}
 
@@ -104,6 +116,7 @@ public class JavaProfiler {
 			if (!Files.isDirectory(srcDirPath)) {
 				throw new IllegalArgumentException("Not a directory: " + srcDir);
 			}
+			javaPackage = javaPackage.isEmpty() ? srcDirPath.relativize(mainFilePath).toString().replace(File.separator, ".") : javaPackage;
 		}
 
 		if(outDir != null){
@@ -113,18 +126,18 @@ public class JavaProfiler {
 		}
 
 		if(outDirPath.toFile().exists()){
-			System.out.println("Directory " + outDirPath +" already exists. Delete all content? (y/[n])");
-			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-			String answer = reader.readLine();
-			if(answer.equals("y")){
+//			System.out.println("Directory " + outDirPath +" already exists. Delete all content? (y/[n])");
+//			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+//			String answer = reader.readLine();
+//			if(answer.equals("y")){
 				Files.walk(outDirPath)
 						.sorted((a, b) -> b.toString().length() - a.toString().length())
 						.map(Path::toFile)
 						.forEach(File::delete);
-			}else{
-				System.out.println("Aborted.");
-				System.exit(0);
-			}
+//			}else{
+//				System.out.println("Aborted.");
+//				System.exit(0);
+//			}
 		}else {
 			Files.createDirectories(outDirPath);
 		}
@@ -133,14 +146,21 @@ public class JavaProfiler {
 
 	protected static void parseArgs(String[] args) {
 		if(args.length < 1){
-			System.out.println("Usage: JavaProfiler [-p <package>] [-o <output>] [-s <src>] <file>");
+			System.out.println("Usage: JavaProfiler [-v] [-p <package>] [-o <output>] [-s <src>] <file> [passArgs]");
+			System.out.println("""
+					-v            : verbose
+					-o <output>   : output directory
+					-s <src>      : source directory (if not specified main file directory is used)
+					<file>        : main file (relative to <src> or absolute directory)
+					passArgs      : arguments passed to main method
+					""");
     	} else {
 			int i = 0;
 			loop: while (i < args.length) {
 				switch (args[i]) {
 					case "-o" -> outDir = args[++i];
 					case "-s" -> srcDir = args[++i];
-					case "-p" ->  javaPackage = args[++i];
+					case "-v" -> verbose = true;
 					default -> {break loop;}
 				}
 				i++;
@@ -150,66 +170,12 @@ public class JavaProfiler {
 		}
 	}
 
+	public static void println(String s){
+		if(verbose){
+			System.out.println(s);
+		}
+	}
+
 }
 
-class FileUtils{
 
-	public static String readFileToString(String path){
-		Path src = Paths.get(path);
-		String fileString = "";
-		try{
-			fileString = Files.readString(src);
-		}catch (IOException ioe){
-			System.err.println("Could not read file " + path);
-		}
-		return fileString;
-	}
-
-	public static Path getAbsoluteDir(String path){
-		Path p = Paths.get(path);
-		if(!p.isAbsolute()){
-			p = p.toAbsolutePath();
-		}
-		if(Files.isDirectory(p)){
-			return p;
-		}else{
-			return p.getParent();
-		}
-	}
-
-	public static Path writeStringToFile(String srcString, String fileName, String destDir){
-		System.out.println("Writing " + fileName + " to " + destDir);
-		Path target = Paths.get( destDir, fileName);
-		try {
-			if(Files.notExists(target.getParent())){
-				Files.createDirectories(target.getParent());
-			}
-			return Files.writeString(target, srcString);
-		}catch (IOException ioe){
-			System.err.println("Could not write file " + target);
-			throw new RuntimeException(ioe);
-		}
-	}
-
-
-	public static String getFileName(String arg) {
-		Path p = Paths.get(arg);
-		if(Files.isRegularFile(p)){
-			return p.getFileName().toString();
-		}else throw new IllegalArgumentException("Not a file: " + arg);
-	}
-
-	public static List<Path> getAllJavaFiles(Path path) throws IOException {
-
-		List<Path> result;
-		try (Stream<Path> walk = Files.walk(path)) {
-			result = walk.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".java")).peek(p->toOutpath(p)).toList();
-		}
-		return result;
-	}
-
-	private static void toOutpath(Path p){
-		Path out = p.getParent().resolve(".profile"+System.currentTimeMillis()).resolve(p.getFileName());
-		System.out.println(out);
-	}
-}
