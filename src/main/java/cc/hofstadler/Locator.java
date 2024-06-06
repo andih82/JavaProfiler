@@ -152,8 +152,8 @@ public class Locator {
     public void leaveVoidMethod(Token token) {
         JavaProfiler.println("Locator.leaveVoidMethod");
         log(token);
-        if(insertPoints.getLast().charPos == token.charPos) {
-            insertPoints.removeLast();
+        if(insertPoints.get(insertPoints.size() - 1).charPos == token.charPos) {
+            insertPoints.remove(insertPoints.size() - 1);
         } else addInsertPoint(InsertPoint.END, token.charPos, false);
     }
 

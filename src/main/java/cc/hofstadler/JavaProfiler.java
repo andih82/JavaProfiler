@@ -31,8 +31,14 @@ public class JavaProfiler {
 		initArgs();
 		analyzeAndInstrument();
 		compileAndRun();
-		// open report in default browser
-		Desktop.getDesktop().open(outDirPath.resolve("report.html").toFile());
+
+		try {
+			// open report in default browser
+			Desktop.getDesktop().open(outDirPath.resolve("report.html").toFile());
+		}catch (Exception ioe){
+			System.err.println("Could not open report in browser");
+			System.out.println("Please open " + outDirPath.resolve("report.html") + " in your browser.");
+		}
 	}
 
 	private static void analyzeAndInstrument() throws IOException {

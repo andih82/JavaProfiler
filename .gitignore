@@ -42,8 +42,9 @@ bin/
 ### Mac OS ###
 .DS_Store
 
-example/**/.profile*
-example/CocoOUT/
-sample/
+/example/**/.profile*
+/example/CocoOUT/
+/sample/
 /src/main/java/cc/hofstadler/Parser.java.old
 /src/main/java/cc/hofstadler/Scanner.java.old
+/example/CocoSourcesJava/

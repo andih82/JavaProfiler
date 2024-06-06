@@ -9,6 +9,13 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+
 dependencies {
 
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
@@ -21,6 +28,7 @@ tasks.test {
 }
 
 tasks.register<JavaExec>("runCoco"){
+    group = "coco"
     classpath = files("coco/Coco.jar")
     mainClass = "Coco/Coco"
     args = listOf("${project.rootDir}/coco/Java.atg", "-package", "cc.hofstadler", "-o", "${project.rootDir}/src/main/java/cc/hofstadler/")

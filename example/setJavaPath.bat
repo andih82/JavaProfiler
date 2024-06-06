@@ -1,1 +1,0 @@
-set PATH=%PATH%;"C:\Program Files\Java\zulu-jdk-21\bin\"
