@@ -55,6 +55,7 @@ c:\Example
     |     |---OtherPackage
     |     |     |---OtherClass.java
     |---.profile
+          |---report.html
           |---Package1
           |     |---Main.java
           |---OtherPackage
@@ -68,7 +69,6 @@ c:\Example
                |       |---OtherClass.class
                |---Measurement
                |       |---_M.class
-               |---report.html
 ```
 When no output directory is specified, the output is written in the subdirectory `.profile` of the source directory,
 otherwise, the output is written in the subdirectory `.profile` specified directory.
