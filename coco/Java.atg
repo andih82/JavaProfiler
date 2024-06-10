@@ -53,7 +53,9 @@ COMPILER Java
                        while (i != top &&  i <= bufLen ) {
                           if(buf[i].kind == _new_) {
                              return true;
-                          } else if ( !(buf[i].kind == _ident || buf[i].kind == _ldiamond || buf[i].kind == _rdiamond || buf[i].kind == _comma ) ) {
+                          } else if ( !(buf[i].kind == _ident || buf[i].kind == _ldiamond ||
+                                        buf[i].kind == _rdiamond || buf[i].kind == _comma ||
+                                        buf[i].kind == _rbracket || buf[i].kind == _lbracket) ) {
         	                 return false;
         	              }
                           i = pos(i-1);
@@ -177,6 +179,8 @@ CHARACTERS
   rbrace    = '}'.
   ldiamond  = '<'.
   rdiamond  = '>'.
+  lbracket  = '['.
+  rbracket  = ']'.
   comma     = ','.
   arrow     = "->".
   new_      = "new".

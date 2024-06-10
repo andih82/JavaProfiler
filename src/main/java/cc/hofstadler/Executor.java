@@ -5,6 +5,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
@@ -18,6 +19,7 @@ public class Executor {
 
 
     private String path;
+    private String extClassPath;
 
     public String getClassPath() {
         return path+"/classes";
@@ -27,8 +29,11 @@ public class Executor {
      * Constructor
      * @param path the -classpath (-cp) for the profiled program
      */
-    public Executor(String path) {
+    public Executor(String path, String extClassPath) {
         this.path = path.replace("\\", "/");
+        if(extClassPath != null && !extClassPath.isEmpty()){
+            this.extClassPath = extClassPath.replace("\\", "/");
+        }
     }
 
     /**
@@ -36,12 +41,20 @@ public class Executor {
      * @param files List of files to compile
      * @throws IOException
      */
-    public void compile(List<Path> files) throws IOException {
+    public void compile(List<Path> files, String extClassPath) throws IOException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
 
+
+        List<String> options = new ArrayList<>();
+        options.add("-d");
+        options.add(getClassPath());
+        if(extClassPath != null && !extClassPath.isEmpty()){
+            options.add("-cp");
+            options.add(extClassPath);
+        }
         Iterable<? extends JavaFileObject> compilationUnits1 = fileManager.getJavaFileObjectsFromPaths(files);
-        compiler.getTask(null, fileManager, null, List.of("-d", getClassPath()), null, compilationUnits1).call();
+        compiler.getTask(null, fileManager, null, options, null, compilationUnits1).call();
 
         fileManager.close();
     }
@@ -65,7 +78,11 @@ public class Executor {
         List<String> commands = new ArrayList<>();
         commands.add("java");
         commands.add("-cp");
-        commands.add(getClassPath());
+        if(extClassPath != null && !extClassPath.isEmpty()){
+            commands.add(getClassPath() + File.pathSeparator+ extClassPath);
+        }else{
+            commands.add(getClassPath());
+        }
         commands.add(execName);
         commands.addAll(Arrays.asList(args.split(" ")));
         System.out.println(commands.stream().collect(Collectors.joining(" ")));

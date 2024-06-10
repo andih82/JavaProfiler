@@ -16,18 +16,19 @@ The profiler generates a report in HTML format that shows the time spent in each
 Usage:
 
 ```java
-java -jar JavaProfiler-1.0.jar [-v] [-s <srcDir>] [-o <outputDir>] <mainfile> [passArgs]
+java -jar JavaProfiler-X.X.X.jar [-v] [-s <srcDir>] [-o <outputDir>] [-cp <extClassPath>] <mainfile> [passArgs]
 ```
 Where:  
 `-v` - verbose mode  
 `-o <outputDir>` - output directory  
 `-s <srcDir>` - source directory, only needed when the program has multiple classes   
+`-cp <extClassPath>` - external class path passed to the compiler and runner, only needed when the program has external classes (see https://docs.oracle.com/en/java/javase/17/docs/specs/man/javac.html), external classes will not be measured      
 `<mainfile>` - java mainfile,   
 `[passArgs]` - arguments to pass to the instrumented application
 
 Examples:
 ```java
-java -jar JavaProfiler-1.0.jar c:\Example\Package1\Main.java
+java -jar JavaProfiler-X.X.X.jar c:\Example\Package1\Main.java
 c:\Example
     |---Package1
     |     |---Main.java
@@ -46,7 +47,7 @@ c:\Example
 ```
 
 ```java
-java -jar JavaProfiler-1.0.jar -s c:\Example\SomeProgram c:\Example\Package1\Main.java
+java -jar JavaProfiler-X.X.X.jar -s c:\Example\SomeProgram c:\Example\Package1\Main.java
 
 c:\Example
     |---SomeProgram  
