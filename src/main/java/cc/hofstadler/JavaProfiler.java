@@ -159,11 +159,12 @@ public class JavaProfiler {
             System.out.println("""
                     -v                 : verbose
                     -o <output>        : output directory
-                    -s <src>           : source directory (if not specified main file directory is used)
+                    -s <src>           : source directory, only needed when the program has multiple classes
                     -cp <extClassPath> : external class path passed to the compiler option -cp 
-                    <file>             : main file (relative to <src> or absolute directory)
+                    <file>             : main file 
                     passArgs           : arguments passed to main method
                     """);
+            System.exit(0);
         } else {
             int i = 0;
             loop:

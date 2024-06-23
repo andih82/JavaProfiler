@@ -137,6 +137,7 @@ public class Parser {
         			int level = 0;
         			int i = pos(top-4);
         			while (i != top &&  i <= bufLen ) {
+        			    if (buf[i].kind == _rbrace) return false;
         				if (buf[i].kind == _rpar) level++;
         				else if (buf[i].kind == _lpar) {
         					level--;

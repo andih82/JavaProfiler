@@ -49,7 +49,7 @@ public class _M {  // class for recording measurements
         time[curClass][curMethod] += currTime;
         curClass = classes[top];
         curMethod = methods[top];
-        if(top>0) time[curClass][curMethod] -= currTime;
+        if(top>0) corr[curClass][curMethod] += currTime;
     }
 
     public static void unrollTo(int c, int m) {
@@ -154,16 +154,6 @@ public class _M {  // class for recording measurements
                         return shortenedParts.join('.');
                     }
 
-                    function initializeShortenedMethodNames() {
-                        const cells = document.querySelectorAll('td[data-fullname]');
-                        cells.forEach(cell => {
-                            const fullName = cell.getAttribute('data-fullname');
-                            const shortenedName = shortenPackageName(fullName);
-                            cell.textContent = shortenedName;
-                        });
-                        isShortened = true;
-                    }
-
                     function convertNanosecondsToMilliseconds(nanoseconds) {
                         return (nanoseconds / 1000000).toFixed(3);
                     }
@@ -207,7 +197,6 @@ public class _M {  // class for recording measurements
 
 
                     document.addEventListener('DOMContentLoaded', () => {
-                        initializeShortenedMethodNames();
                         initializeNumericCells();
                         document.getElementById('toggleButton').addEventListener('click', togglePackageNames);
                     });
