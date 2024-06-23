@@ -328,7 +328,7 @@ public class Parser {
 				Block(false, false, true);
 			} else if (la.kind == 13) {
 				Get();
-				Block(false, false, false);
+				Block(false, false, ignoreReturn);
 			} else if (la.kind == 27) {
 				ReturnStatement(ignoreReturn);
 			} else if (la.kind == 28) {

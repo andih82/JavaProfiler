@@ -236,7 +236,7 @@ Block< boolean unroll, boolean methodEnd, boolean ignoreReturn>
       ClassBody<true>
     | IF(isLambdaBlock()) "{"
        Block<false, false, true>
-    | "{" Block<false, false, false>
+    | "{" Block<false, false, ignoreReturn>
 	| ReturnStatement<ignoreReturn>
 	| ExitStatement
 	| UnrollBlock
